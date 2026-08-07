@@ -1,0 +1,253 @@
+"use client";
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  BookOpen, LayoutDashboard, Calendar, UserCheck, LogOut, Home,
+  GraduationCap, MessageSquare, Bell, Settings, Star, Video,
+  User, CreditCard, FileText, Folder, BarChart2, Menu, X,
+  Search, Gift, HelpCircle, TrendingUp, ArrowRight, ChevronRight,
+} from 'lucide-react';
+import { usePoll } from '../lib/api';
+
+export default function DashboardLayout({ children }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [user, setUser] = useState(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const isAdminRoute = pathname?.startsWith('/dashboard/admin');
+
+  // Poll notifications for badge count
+  const { data: notifs } = usePoll('/api/v1/notifications', 30000, []);
+  const unreadCount = Array.isArray(notifs) ? notifs.filter((n) => !n.read).length : 0;
+
+  useEffect(() => {
+    if (isAdminRoute) return;
+    const storedUser = localStorage.getItem('tutorconnect-user');
+    if (!storedUser) { router.replace('/login'); return; }
+    const parsedUser = JSON.parse(storedUser);
+    setUser(parsedUser);
+    if (pathname === '/dashboard' || pathname === '/dashboard/') {
+      router.replace(`/dashboard/${parsedUser.role || 'student'}`);
+    }
+  }, [pathname, isAdminRoute, router]);
+
+  useEffect(() => { setMobileNavOpen(false); }, [pathname]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('tutorconnect-token');
+    localStorage.removeItem('tutorconnect-user');
+    window.dispatchEvent(new Event('auth-change'));
+    router.replace('/login');
+  };
+
+  if (isAdminRoute) return <>{children}</>;
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-3 border-[#056852] border-t-transparent" style={{ borderWidth: 3 }} />
+          <p className="text-sm font-medium text-slate-500">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const role = user.role || 'student';
+
+  // ── Nav definitions ────────────────────────────────────────────────────────
+  // Each item gets a unique key so active state works correctly.
+  // Items without a real sub-page use section= query to distinguish.
+  const roleNavs = {
+    student: [
+      { key: 'dashboard', name: 'Dashboard', href: '/dashboard/student', icon: LayoutDashboard, exact: true },
+      { key: 'find', name: 'Find Home Tutor', href: '/tutors', icon: Search },
+      { key: 'my-tutor', name: 'My Tutor', href: '/dashboard/student?section=my-tutor', icon: User },
+      { key: 'schedule', name: 'My Schedule', href: '/dashboard/student?section=schedule', icon: Calendar },
+      { key: 'subjects', name: 'My Subjects', href: '/dashboard/student?section=subjects', icon: BookOpen },
+      { key: 'homework', name: 'Homework & Notes', href: '/dashboard/student?section=homework', icon: FileText },
+      { key: 'messages', name: 'Messages', href: '/dashboard/student?section=messages', icon: MessageSquare, badge: 2 },
+      { key: 'payments', name: 'Payments', href: '/dashboard/student?section=payments', icon: CreditCard },
+      { key: 'notifications', name: 'Notifications', href: '/dashboard/student?section=notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : null },
+      { key: 'progress', name: 'My Progress', href: '/dashboard/student?section=progress', icon: TrendingUp },
+      { key: 'refer', name: 'Refer & Earn', href: '/dashboard/student?section=refer', icon: Gift },
+      { key: 'settings', name: 'Settings', href: '/dashboard/student?section=settings', icon: Settings },
+      { key: 'help', name: 'Help & Support', href: '/dashboard/student?section=help', icon: HelpCircle },
+    ],
+    tutor: [
+      { key: 'dashboard', name: 'Overview', href: '/dashboard/tutor', icon: LayoutDashboard, exact: true },
+      { key: 'students', name: 'Students', href: '/dashboard/tutor/students', icon: GraduationCap },
+      { key: 'courses', name: 'Courses', href: '/dashboard/tutor/courses', icon: BookOpen },
+      { key: 'schedule', name: 'Schedule', href: '/dashboard/tutor?section=schedule', icon: Calendar },
+      { key: 'live', name: 'Live Classes', href: '/dashboard/tutor/live-classes', icon: Video },
+      { key: 'material', name: 'Study Material', href: '/dashboard/tutor/study-material', icon: FileText },
+      { key: 'assignments', name: 'Assignments', href: '/dashboard/tutor/assignments', icon: Folder },
+      { key: 'messages', name: 'Messages', href: '/dashboard/tutor/messages', icon: MessageSquare, badge: 9 },
+      { key: 'reviews', name: 'Reviews', href: '/dashboard/tutor/reviews', icon: Star },
+      { key: 'earnings', name: 'Earnings', href: '/dashboard/tutor/earnings', icon: CreditCard },
+      { key: 'analytics', name: 'Analytics', href: '/dashboard/tutor?section=analytics', icon: BarChart2 },
+      { key: 'notifications', name: 'Notifications', href: '/dashboard/tutor/notifications', icon: Bell, badge: 3 },
+      { key: 'profile', name: 'Profile', href: '/dashboard/tutor/profile', icon: User },
+      { key: 'settings', name: 'Settings', href: '/dashboard/tutor/settings', icon: Settings },
+    ],
+    institute: [
+      { key: 'dashboard', name: 'Overview', href: '/dashboard/institute', icon: LayoutDashboard, exact: true },
+      { key: 'faculty', name: 'Find Faculty', href: '/tutors', icon: UserCheck },
+    ],
+  };
+
+  const navigation = roleNavs[role] || roleNavs.student;
+
+  // ── Active state: Only the exact matching href is active ──────────────────
+  const isActive = (item) => {
+    if (item.exact) return pathname === item.href.split('?')[0];
+    const [itemPath, itemQuery] = item.href.split('?');
+    const [currentPath, currentQuery] = (pathname + (typeof window !== 'undefined' ? window.location.search : '')).split('?');
+    if (itemPath !== currentPath) return false;
+    if (!itemQuery) return !currentQuery;
+    return currentQuery === itemQuery;
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f5f7fa]">
+      {/* ── SIDEBAR ──────────────────────────────────────────────────────────── */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-white border-r border-slate-100 shadow-sm transition-transform duration-300 md:translate-x-0 ${
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Logo */}
+        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-slate-100 px-5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#056852] text-white shadow-md shadow-[#056852]/30">
+            <BookOpen size={16} strokeWidth={2.5} />
+          </div>
+          <span className="text-[15px] font-extrabold tracking-tight text-slate-900">
+            Tutor<span className="text-[#056852]">Connect</span>
+          </span>
+        </div>
+
+        {/* User Info */}
+        <div className="shrink-0 px-4 py-3 border-b border-slate-100">
+          <div className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#056852] to-teal-400 text-white font-bold text-sm shadow">
+              {user.name?.charAt(0)?.toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-bold text-slate-900">{user.name}</p>
+              <p className="truncate text-[10px] text-slate-400">{user.email}</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-[#056852]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#056852]">
+              {role}
+            </span>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 scrollbar-thin">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item);
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12.5px] font-semibold transition-all duration-150 ${
+                  active
+                    ? 'bg-[#056852] text-white shadow-md shadow-[#056852]/25'
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <Icon
+                  size={16}
+                  className={`shrink-0 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`}
+                />
+                <span className="flex-1 truncate">{item.name}</span>
+                {item.badge ? (
+                  <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
+                    active ? 'bg-white/25 text-white' : 'bg-rose-500 text-white'
+                  }`}>
+                    {item.badge}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Bottom: CTA for student + logout */}
+        <div className="shrink-0 border-t border-slate-100 px-4 pb-4 pt-3 space-y-2">
+          {role === 'student' && (
+            <div className="rounded-2xl bg-gradient-to-br from-[#056852] to-teal-500 p-4 mb-1 shadow-lg shadow-[#056852]/20">
+              <p className="text-[11px] font-bold text-white leading-snug">Need a tutor for a new subject?</p>
+              <p className="mt-0.5 text-[10px] text-teal-100">Find the perfect match for your goals.</p>
+              <Link
+                href="/tutors"
+                className="mt-2.5 flex items-center justify-center gap-1 rounded-xl bg-white py-1.5 text-[11px] font-bold text-[#056852] hover:bg-teal-50 transition"
+              >
+                Find Tutor Now <ArrowRight size={11} />
+              </Link>
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            <Link
+              href="/"
+              className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
+            >
+              <Home size={13} /> Public Site
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-semibold text-rose-500 hover:bg-rose-50 transition"
+            >
+              <LogOut size={13} /> Sign Out
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── MOBILE HEADER ────────────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:hidden">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#056852] text-white">
+            <BookOpen size={14} />
+          </div>
+          <span className="text-[14px] font-extrabold text-slate-900">
+            Tutor<span className="text-[#056852]">Connect</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <div className="relative">
+              <Bell size={18} className="text-slate-500" />
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white">
+                {unreadCount}
+              </span>
+            </div>
+          )}
+          <button
+            onClick={() => setMobileNavOpen((p) => !p)}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition"
+          >
+            {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
+      {/* ── MAIN CONTENT ─────────────────────────────────────────────────────── */}
+      <main className="min-h-screen md:pl-64">
+        {children}
+      </main>
+    </div>
+  );
+}

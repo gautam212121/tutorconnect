@@ -1,0 +1,42 @@
+import axios from 'axios';
+
+export const api = axios.create({
+  baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000') + '/api/v1/',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('tutorconnect-token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
+// Admin API
+export const adminApi = {
+  getSettings: () => api.get('admin-new/settings').then(res => res.data),
+  updateSettings: (data) => api.put('admin-new/settings', data).then(res => res.data),
+  
+  getCategories: () => api.get('admin-new/categories').then(res => res.data),
+  createCategory: (data) => api.post('admin-new/categories', data).then(res => res.data),
+  updateCategory: (id, data) => api.put(`admin-new/categories/${id}`, data).then(res => res.data),
+  deleteCategory: (id) => api.delete(`admin-new/categories/${id}`).then(res => res.data),
+  
+  getUsers: (role) => api.get(`admin-new/users${role ? `?role=${role}` : ''}`).then(res => res.data),
+  createUser: (data) => api.post('admin-new/users', data).then(res => res.data),
+  updateUser: (id, data) => api.put(`admin-new/users/${id}`, data).then(res => res.data),
+  deleteUser: (id) => api.delete(`admin-new/users/${id}`).then(res => res.data),
+  
+  getCourses: () => api.get('admin-new/courses').then(res => res.data),
+  createCourse: (data) => api.post('admin-new/courses', data).then(res => res.data),
+  updateCourse: (id, data) => api.put(`admin-new/courses/${id}`, data).then(res => res.data),
+  deleteCourse: (id) => api.delete(`admin-new/courses/${id}`).then(res => res.data),
+  
+  getBookings: () => api.get('admin-new/bookings').then(res => res.data),
+  updateBooking: (id, data) => api.put(`admin-new/bookings/${id}`, data).then(res => res.data),
+};
