@@ -1,5 +1,6 @@
 import './globals.css';
 import { Inter, DM_Sans } from 'next/font/google';
+import FloatingWidget from './components/FloatingWidget';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans' });
@@ -14,6 +15,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${inter.variable} ${dmSans.variable}`}>
       <body className="min-h-screen bg-slate-50 text-slate-800 antialiased font-sans">
         {children}
+        <FloatingWidget />
       </body>
     </html>
   );

@@ -106,6 +106,50 @@ export default function AuthForm({ mode = 'login' }) {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const { signInWithPopup } = await import('firebase/auth');
+      const { auth, googleProvider } = await import('../firebase');
+      
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = googleProvider.constructor.credentialFromResult(result);
+      const idToken = credential?.idToken;
+
+      if (!idToken) {
+        throw new Error('Failed to retrieve Google ID token.');
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/v1/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: idToken }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Google Authentication failed');
+
+      localStorage.setItem('tutorconnect-token', data.token);
+      localStorage.setItem('tutorconnect-user', JSON.stringify(data.user));
+      window.dispatchEvent(new Event('auth-change'));
+
+      setSuccess('Signed in successfully with Google! Redirecting...');
+
+      setTimeout(() => {
+        const role = data.user.role;
+        const destination = role === 'admin' ? '/dashboard/admin' : role === 'tutor' ? '/dashboard/tutor' : '/dashboard/student';
+        router.push(destination);
+      }, 600);
+    } catch (err) {
+      console.error('Google Sign-in error:', err);
+      setError(err.message || 'Google authentication failed.');
+      setLoading(false);
+    }
+  };
+
   const handleArrayToggle = (field, subfield, value) => {
     setForm(prev => {
       const arr = prev[field][subfield];
@@ -140,6 +184,23 @@ export default function AuthForm({ mode = 'login' }) {
             {loading ? <Loader2 size={18} className="animate-spin" /> : 'Log In'}
           </button>
         </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
+          <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-3 text-slate-500 font-medium">Or continue with</span></div>
+        </div>
+
+        <button type="button" onClick={handleGoogleLogin} disabled={loading} className="w-full flex items-center justify-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition shadow-sm disabled:opacity-70">
+          <svg className="h-5 w-5 animate-none" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+            <g transform="matrix(1, 0, 0, 1, 0, 0)">
+              <path d="M21.35,11.1H12v2.7h5.38C16.88,16.3,14.7,17.7,12,17.7c-3.15,0-5.7-2.55-5.7-5.7s2.55-5.7,5.7-5.7c1.37,0,2.63,0.48,3.63,1.3l2.03-2.03C16.12,4.1,14.18,3.3,12,3.3c-4.8,0-8.7,3.9-8.7,8.7s3.9,8.7,8.7,8.7c4.6,0,8.3-3.3,8.3-8.7C20.3,11.7,20.32,11.1,21.35,11.1Z" fill="#34A853" />
+              <path d="M12,3.3c2.18,0,4.12,0.8,5.66,2.27l2.03-2.03C17.66,1.72,14.98,0.6,12,0.6,7.2,0.6,3.3,4.5,3.3,9.3l3.63-2.82C7.82,4.78,9.75,3.3,12,3.3Z" fill="#EA4335" />
+              <path d="M3.3,9.3c-0.38,1.15-0.6,2.37-0.6,3.65s0.22,2.5,0.6,3.65l3.63-2.82c-0.18-0.54-0.28-1.12-0.28-1.73s0.1-1.19,0.28-1.73Z" fill="#FBBC05" />
+              <path d="M12,17.7c-2.25,0-4.18-1.48-5.07-3.52L3.3,17c1.88,3.7,5.75,6.3,10.2,6.3,4.6,0,8.3-3.3,8.3-8.7h-5.38C16.88,16.3,14.7,17.7,12,17.7Z" fill="#4285F4" />
+            </g>
+          </svg>
+          Continue with Google
+        </button>
       </div>
     );
   }

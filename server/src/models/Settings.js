@@ -6,6 +6,9 @@ const settingsSchema = new mongoose.Schema({
   commissionRate: { type: Number, default: 10 }, // percentage
   gstRate: { type: Number, default: 18 },
   maintenanceMode: { type: Boolean, default: false },
+  heroTitle: { type: String, default: 'Quality Home Tuition' },
+  heroSubtitle: { type: String, default: 'Verified tutors at your doorstep' },
+  heroImage: { type: String, default: '/hero-banner.jpg' },
   smtp: {
     host: { type: String },
     port: { type: Number },

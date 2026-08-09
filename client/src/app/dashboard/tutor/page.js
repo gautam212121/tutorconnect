@@ -1,427 +1,451 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useSocket } from '../../../hooks/useSocket';
-import { usePoll, fetchApi } from '../../lib/api';
-import { RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Users, Star, Calendar, ArrowRight, CreditCard, TrendingUp, ArrowUpRight,
+  MapPin, GraduationCap, Clock, Award, ChevronRight, Wallet, Shield,
+  RefreshCw, AlertCircle, Zap, Crown, Info, FileText, MessageSquare,
+  BarChart2, BadgeCheck, CircleDollarSign, ExternalLink, Phone,
+} from 'lucide-react';
 
-// ── SVG Line Chart ───────────────────────────────────────────────────────────
-function LineChart({ data, color = '#0f766e', height = 100 }) {
-  if (!Array.isArray(data) || data.length < 2) return null;
-  const W = 320, H = height;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-  const points = data
-    .map((value, index) => {
-      const x = (index / (data.length - 1)) * (W - 24) + 12;
-      const y = H - ((value - min) / range) * (H - 24) - 12;
-      return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(' ');
-  const fill = `${points} L${((data.length - 1) / (data.length - 1)) * (W - 24) + 12},${H} L12,${H} Z`;
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+// Simple Chart component
+function MiniLineChart({ data = [], height = 80 }) {
+  if (!data.length) return null;
+  const max = Math.max(...data, 1);
+  const points = data.map((val, i) => ({
+    x: (i / (data.length - 1 || 1)) * 200,
+    y: height - (val / max) * height,
+  }));
+  const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const area = path + ` L200,${height} L0,${height} Z`;
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none">
+    <svg viewBox={`0 0 200 ${height}`} className="w-full" preserveAspectRatio="none">
       <defs>
-        <linearGradient id={`grad-${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        <linearGradient id="chartGrad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#059669" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="#059669" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={fill} fill={`url(#grad-${color.replace('#','')})`} />
-      <path d={points} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={area} fill="url(#chartGrad)" />
+      <path d={path} fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-// ── Stat Card ─────────────────────────────────────────────────────────────────
-function MetricCard({ title, value, badge, color }) {
-  return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{title}</p>
-          <p className="mt-2.5 text-2xl font-extrabold text-slate-900">{value}</p>
+export default function TutorDashboard() {
+  const [user, setUser] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [commissionStructure, setCommissionStructure] = useState(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('tutorconnect-user');
+    if (stored) setUser(JSON.parse(stored));
+
+    const token = localStorage.getItem('tutorconnect-token');
+    if (!token) return;
+
+    Promise.all([
+      fetch(`${API}/api/v1/tutor/dashboard`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch(`${API}/api/v1/config/commission`).then(r => r.json()),
+    ])
+      .then(([dashData, commData]) => {
+        setDashboard(dashData);
+        setCommissionStructure(commData);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="h-8 w-64 skeleton rounded-lg" />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => <div key={i} className="h-28 skeleton rounded-2xl" />)}
         </div>
-        <span className={`mt-1 shrink-0 rounded-2xl px-2.5 py-1.5 text-[11px] font-bold ${color}`}>{badge}</span>
+        <div className="grid lg:grid-cols-2 gap-4">
+          <div className="h-56 skeleton rounded-2xl" />
+          <div className="h-56 skeleton rounded-2xl" />
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-// ── Progress Bar ──────────────────────────────────────────────────────────────
-function ProgressBar({ value, label, color }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 mb-1">
-        <span>{label}</span>
-        <span>{value}%</span>
-      </div>
-      <div className="h-2 rounded-full bg-slate-200">
-        <div
-          className="h-2 rounded-full transition-all duration-700"
-          style={{ width: `${value}%`, backgroundColor: color }}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ── Live Indicator ────────────────────────────────────────────────────────────
-function LiveIndicator({ lastUpdate }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-      </span>
-      <span className="text-[10px] font-semibold text-emerald-600">Live</span>
-      {lastUpdate && (
-        <span className="text-[10px] text-slate-400">
-          · Updated {lastUpdate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ── Main Component ────────────────────────────────────────────────────────────
-export default function TutorDashboardPage() {
-  const [lastUpdate, setLastUpdate] = useState(null);
-
-  const { data: dashData, loading, reload } = usePoll('/api/v1/tutor/dashboard', 30000, null);
-  const socket = useSocket();
-
-  useEffect(() => {
-    if (!loading && dashData) setLastUpdate(new Date());
-  }, [loading, dashData]);
-
-  useEffect(() => {
-    if (!socket) return;
-    const handleUpdate = () => reload();
-    
-    socket.on('bookingCreated', handleUpdate);
-    socket.on('bookingUpdated', handleUpdate);
-    socket.on('reviewAdded', handleUpdate);
-    
-    return () => {
-      socket.off('bookingCreated', handleUpdate);
-      socket.off('bookingUpdated', handleUpdate);
-      socket.off('reviewAdded', handleUpdate);
-    };
-  }, [socket, reload]);
-
-  const d = dashData || {};
-  const metrics = d.metrics || {};
-  const schedule = d.schedule || [];
-  const revenueBySubject = d.revenueBySubject || [];
-  const alerts = d.alerts || [];
-  const weeklyEarnings = d.weeklyEarnings || [0, 0, 0, 0, 0, 0, 0];
-  const monthlyEarnings = d.monthlyEarnings || [0, 0, 0, 0, 0, 0, 0];
-  const studentGrowth = d.studentGrowth || [0, 0, 0, 0, 0, 0, 0];
-  const bookingStats = d.bookingStats || { confirmed: 0, pending: 0 };
-
-  const metricCards = [
-    {
-      title: 'Total Students', value: loading ? '…' : (metrics.totalStudents || 0).toLocaleString(),
-      badge: metrics.studentGrowthBadge || '+0%', color: 'bg-emerald-50 text-emerald-700',
-    },
-    {
-      title: 'Active Courses', value: loading ? '…' : (metrics.activeCourses || 0),
-      badge: metrics.courseGrowthBadge || '+0%', color: 'bg-blue-50 text-blue-700',
-    },
-    {
-      title: 'Average Rating', value: loading ? '…' : (metrics.avgRating || 0),
-      badge: '⭐', color: 'bg-amber-50 text-amber-700',
-    },
-    {
-      title: 'Monthly Earnings', value: loading ? '…' : `₹${((metrics.monthlyEarnings || 0) / 1000).toFixed(1)}k`,
-      badge: metrics.earningsGrowthBadge || '+0%', color: 'bg-teal-50 text-teal-700',
-    },
-    {
-      title: "Today's Classes", value: loading ? '…' : (metrics.todayClasses || 0),
-      badge: 'Live', color: 'bg-rose-50 text-rose-700',
-    },
-    {
-      title: 'New Enquiries', value: loading ? '…' : (metrics.newEnquiries || 0),
-      badge: 'New', color: 'bg-violet-50 text-violet-700',
-    },
-    {
-      title: 'Profile Views', value: loading ? '…' : (metrics.profileViews || 0).toLocaleString(),
-      badge: metrics.profileViewsBadge || '+0%', color: 'bg-cyan-50 text-cyan-700',
-    },
-    {
-      title: 'Unread Messages', value: loading ? '…' : (metrics.unreadMessages || 0),
-      badge: 'Open', color: 'bg-amber-50 text-amber-700',
-    },
-  ];
-
-  const skeletonClass = "animate-pulse bg-slate-200 rounded-xl";
+  const stats = dashboard?.stats || {};
+  const commission = dashboard?.commission || {};
+  const leads = dashboard?.leads || [];
+  const upcomingSessions = dashboard?.upcomingSessions || [];
+  const monthlyEarnings = dashboard?.monthlyEarnings || [];
+  const recentPayouts = dashboard?.recentPayouts || [];
+  const completedSessions = dashboard?.completedSessions || 0;
+  const freeLeads = stats.freeLeads || { used: 0, limit: 5, remaining: 5 };
+  const tiers = commissionStructure?.tiers || [];
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] px-4 py-6 lg:px-6">
-      <div className="mx-auto max-w-7xl space-y-5">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-extrabold text-slate-900">
+          Welcome back, {user?.name?.split(' ')[0]} 👋
+        </h1>
+        <p className="text-sm text-slate-400 mt-0.5">Here&apos;s your teaching overview and performance summary.</p>
+      </div>
 
-        {/* Header */}
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {/* ── Stat Cards ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        {[
+          {
+            icon: <Users size={20} />, iconBg: 'bg-emerald-50 text-emerald-600',
+            value: `${freeLeads.remaining}/${freeLeads.limit}`, label: 'Free Leads Remaining',
+            sub: 'This Month', badge: null,
+          },
+          {
+            icon: <FileText size={20} />, iconBg: 'bg-blue-50 text-blue-600',
+            value: stats.activeLeads || 0, label: 'Active Leads',
+            sub: `Responded: ${stats.respondedLeads || 0}`, badge: null,
+          },
+          {
+            icon: <Calendar size={20} />, iconBg: 'bg-purple-50 text-purple-600',
+            value: stats.upcomingSessions || 0, label: 'Upcoming Sessions',
+            sub: 'This Week', badge: null,
+          },
+          {
+            icon: <CircleDollarSign size={20} />, iconBg: 'bg-green-50 text-green-600',
+            value: `₹${(stats.totalEarnings || 0).toLocaleString()}`, label: 'Total Earnings',
+            sub: 'This Month', badge: null,
+          },
+          {
+            icon: <Wallet size={20} />, iconBg: 'bg-amber-50 text-amber-600',
+            value: `₹${(stats.walletBalance || 0).toLocaleString()}`, label: 'Wallet Balance',
+            sub: 'Available', badge: null,
+          },
+        ].map((card, i) => (
+          <div key={i} className="bg-white rounded-2xl border border-slate-100 p-4 hover:shadow-md transition">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${card.iconBg} mb-2`}>
+              {card.icon}
+            </div>
+            <p className="text-xl font-extrabold text-slate-900">{card.value}</p>
+            <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{card.label}</p>
+            <p className="text-[10px] text-slate-400">{card.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Commission Rate + Premium Upsell ───────────────────────────────── */}
+      <div className="grid lg:grid-cols-3 gap-4 mb-6">
+        {/* Commission Rate */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-[#056852]">Tutor Dashboard</p>
-              <h1 className="mt-1.5 text-2xl font-bold text-slate-900">Everything you need to run your teaching business</h1>
-              <p className="mt-1.5 max-w-2xl text-sm text-slate-500">Monitor student growth, schedule, earnings and messages from one place.</p>
+              <h3 className="text-sm font-bold text-slate-800">Your Commission Rate</h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">Based on your completed sessions tier</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <LiveIndicator lastUpdate={lastUpdate} />
-              <button
-                onClick={reload}
-                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 transition"
-              >
-                <RefreshCw size={12} /> Refresh
-              </button>
-              <div className="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">
-                {metrics.newEnquiries || 8} new enquiries
-              </div>
-              <div className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700">
-                Live classes active
-              </div>
-              <div className="rounded-full bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700">
-                Profile views +22%
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Metrics Grid */}
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {metricCards.map((card) => (
-            <MetricCard key={card.title} {...card} />
-          ))}
-        </section>
-
-        {/* Charts Row */}
-        <section className="grid gap-5 xl:grid-cols-3">
-          {/* Weekly Earnings */}
-          <div className="col-span-2 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <div>
-                <p className="text-sm font-bold text-slate-900">Weekly Earnings</p>
-                <p className="text-[11px] text-slate-500">Track revenue for your tutoring sessions</p>
-              </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">
-                ₹{((weeklyEarnings[weeklyEarnings.length - 1]) / 1000).toFixed(1)}k this week
-              </span>
-            </div>
-            {loading ? <div className={`${skeletonClass} h-28`} /> : <div className="h-28"><LineChart data={weeklyEarnings} /></div>}
-            <div className="mt-4 grid grid-cols-3 gap-3 text-[11px] text-slate-500">
-              <div className="rounded-2xl bg-slate-50 p-3">
-                <p className="font-bold text-slate-900">+24%</p>
-                <p>Week over week</p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-3">
-                <p className="font-bold text-slate-900">{metrics.todayClasses || 3} sessions</p>
-                <p>Confirmed today</p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-3">
-                <p className="font-bold text-slate-900">₹{((weeklyEarnings.reduce((a,b)=>a+b,0)/weeklyEarnings.length)/1000).toFixed(1)}k</p>
-                <p>Avg income/day</p>
-              </div>
+            <div className="text-right">
+              <p className="text-3xl font-extrabold text-emerald-600">
+                {Math.round((commission.rate || 0.15) * 100)}%
+              </p>
+              <p className="text-[10px] text-slate-400">{commission.tier || '0 – 20 Sessions'}</p>
             </div>
           </div>
 
-          {/* Monthly Earnings */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <div>
-                <p className="text-sm font-bold text-slate-900">Monthly Earnings</p>
-                <p className="text-[11px] text-slate-500">Last 7 weeks overview</p>
-              </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">
-                ₹{(monthlyEarnings.reduce((a,b)=>a+b,0)/1000).toFixed(0)}k
-              </span>
-            </div>
-            {loading ? <div className={`${skeletonClass} h-28`} /> : <div className="h-28"><LineChart data={monthlyEarnings} color="#2563eb" /></div>}
-            <div className="mt-4 space-y-2 text-[11px] text-slate-500">
-              <p><span className="font-bold text-slate-900">3.8%</span> increase from last month</p>
-              <p><span className="font-bold text-slate-900">₹12,400</span> pending payouts</p>
-            </div>
-          </div>
-        </section>
-
-        {/* Analytics Row */}
-        <section className="grid gap-5 xl:grid-cols-3">
-          {/* Student Growth */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-slate-900">Student Growth</p>
-              <span className="text-[11px] font-semibold text-slate-400">Last 7 days</span>
-            </div>
-            {loading ? <div className={`${skeletonClass} h-24`} /> : <div className="h-24"><LineChart data={studentGrowth} color="#059669" /></div>}
-            <div className="mt-3 text-sm font-semibold text-slate-900">+{studentGrowth[studentGrowth.length - 1]} new students</div>
-          </div>
-
-          {/* Booking Stats */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-slate-900">Booking Statistics</p>
-              <span className="text-[11px] font-semibold text-slate-400">Confirmed / Pending</span>
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-emerald-50 p-4 text-center">
-                <p className="text-2xl font-extrabold text-emerald-700">{loading ? '…' : bookingStats.confirmed}</p>
-                <p className="text-[11px] text-emerald-600 font-semibold mt-1">Confirmed</p>
-              </div>
-              <div className="rounded-2xl bg-amber-50 p-4 text-center">
-                <p className="text-2xl font-extrabold text-amber-700">{loading ? '…' : bookingStats.pending}</p>
-                <p className="text-[11px] text-amber-600 font-semibold mt-1">Pending</p>
-              </div>
-            </div>
-            <div className="mt-3 space-y-2">
-              <ProgressBar label="Booking rate" value={Math.round((bookingStats.confirmed / (bookingStats.confirmed + bookingStats.pending + 1)) * 100)} color="#059669" />
-            </div>
+          {/* Commission Tiers Table */}
+          <div className="overflow-hidden rounded-xl border border-slate-100">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="text-left px-3 py-2 text-slate-500 font-semibold">Session Range</th>
+                  <th className="text-center px-3 py-2 text-slate-500 font-semibold">Commission Rate</th>
+                  <th className="text-center px-3 py-2 text-slate-500 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(tiers.length > 0 ? tiers : [
+                  { label: '0 – 20 Sessions', ratePercent: '15%', minSessions: 0, maxSessions: 20 },
+                  { label: '21 – 100 Sessions', ratePercent: '10%', minSessions: 21, maxSessions: 100 },
+                  { label: '100+ Sessions', ratePercent: '5%', minSessions: 101, maxSessions: 999999 },
+                ]).map((tier, i) => {
+                  const isActive = completedSessions >= tier.minSessions && completedSessions <= tier.maxSessions;
+                  return (
+                    <tr key={i} className={isActive ? 'bg-emerald-50' : ''}>
+                      <td className="px-3 py-2.5 font-semibold text-slate-700">{tier.label}</td>
+                      <td className="px-3 py-2.5 text-center font-bold text-slate-800">{tier.ratePercent}</td>
+                      <td className="px-3 py-2.5 text-center">
+                        {isActive ? (
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold">Current</span>
+                        ) : completedSessions > (tier.maxSessions || 0) ? (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-[10px] font-bold">Completed</span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-slate-50 text-slate-400 rounded-full text-[10px] font-bold">Upcoming</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
 
-          {/* Class Completion Rate */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-slate-900">Class Completion</p>
-              <span className="text-[11px] font-semibold text-slate-400">Monthly</span>
-            </div>
-            <div className="flex h-24 items-center justify-center rounded-2xl bg-slate-50">
-              <div className="text-center">
-                <p className="text-4xl font-extrabold text-slate-900">87%</p>
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">On-time completion</p>
-              </div>
-            </div>
-            <div className="mt-4 space-y-2">
-              <ProgressBar label="Classes attended" value={87} color="#0f766e" />
-              <ProgressBar label="Reschedule rate" value={8} color="#f59e0b" />
-              <ProgressBar label="Cancellation rate" value={5} color="#ef4444" />
-            </div>
-          </div>
-        </section>
+          <Link href="#" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+            <Info size={12} /> View Full Commission Structure
+          </Link>
+        </div>
 
-        {/* Schedule + Revenue + Alerts */}
-        <section className="grid gap-5 xl:grid-cols-3">
-          {/* Today's Schedule */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-bold text-slate-900">Today's Schedule</p>
-              <span className="text-[11px] font-semibold text-slate-400">Live</span>
+        {/* Premium Upsell */}
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white">
+          <div className="flex items-center gap-2 mb-3">
+            <Crown size={20} className="text-amber-400" />
+            <h3 className="text-sm font-bold">Want Lower Commission & More Leads?</h3>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed mb-4">
+            Upgrade to a Pro or Premium plan and get more leads, lower commission rates, search boost, and priority support.
+          </p>
+
+          <div className="space-y-2 mb-4">
+            {[
+              '50 leads/month (Basic: 20)',
+              '5% commission rate',
+              'Search boost & priority badge',
+              'Premium support',
+            ].map((feature, i) => (
+              <div key={i} className="flex items-center gap-2 text-[11px] text-slate-200">
+                <BadgeCheck size={12} className="text-emerald-400 shrink-0" />
+                {feature}
+              </div>
+            ))}
+          </div>
+
+          <Link
+            href="/dashboard/tutor/settings?tab=subscription"
+            className="flex items-center justify-center gap-1 w-full py-2.5 bg-emerald-500 rounded-xl text-xs font-bold hover:bg-emerald-600 transition"
+          >
+            View Subscription Plans <ArrowRight size={12} />
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Upcoming Sessions + My Leads ────────────────────────────────────── */}
+      <div className="grid lg:grid-cols-2 gap-4 mb-6">
+        {/* Upcoming Sessions */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-800">Upcoming Sessions</h3>
+            <Link href="/dashboard/tutor?section=schedule" className="text-[11px] font-semibold text-emerald-600">View All</Link>
+          </div>
+
+          {upcomingSessions.length === 0 ? (
+            <div className="text-center py-8">
+              <Calendar size={36} className="mx-auto text-slate-200 mb-2" />
+              <p className="text-xs text-slate-400">No upcoming sessions</p>
             </div>
+          ) : (
             <div className="space-y-3">
-              {loading ? (
-                [1,2,3,4].map(i => <div key={i} className={`${skeletonClass} h-14`} />)
-              ) : schedule.map((item) => (
-                <div key={item.time} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-slate-500">{item.time}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
-                      item.status === 'Ongoing'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : item.status === 'Upcoming'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-rose-100 text-rose-600'
-                    }`}>
-                      {item.status}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 text-xs font-bold text-slate-900">{item.title}</p>
-                  <p className="text-[10px] text-slate-400">{item.subject} · {item.students} students</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Subject-wise Revenue */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-bold text-slate-900 mb-4">Subject-wise Revenue</p>
-            <div className="space-y-3">
-              {loading ? (
-                [1,2,3,4,5,6].map(i => <div key={i} className={`${skeletonClass} h-8`} />)
-              ) : revenueBySubject.map((item) => (
-                <div key={item.subject}>
-                  <div className="flex items-center justify-between text-sm text-slate-600 mb-1">
-                    <span className="text-[11px]">{item.subject}</span>
-                    <span className="text-[11px] font-bold text-slate-900">₹{item.amount.toLocaleString()}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-100">
-                    <div className="h-2 rounded-full bg-[#056852] transition-all duration-700" style={{ width: `${item.percent}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Alerts & Messages */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-bold text-slate-900">Messages & Enquiries</p>
-              <span className="text-[11px] font-semibold text-slate-400">Recent</span>
-            </div>
-            <div className="space-y-3">
-              {loading ? (
-                [1,2,3,4].map(i => <div key={i} className={`${skeletonClass} h-12`} />)
-              ) : alerts.map((alert, i) => (
-                <div key={i} className="rounded-2xl bg-slate-50 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">
-                        {alert.type === 'enquiry' ? '📬' : alert.type === 'payment' ? '💰' : alert.type === 'schedule' ? '📅' : '⭐'}
-                      </span>
-                      <p className="text-[11px] font-semibold text-slate-800">{alert.label}</p>
+              {upcomingSessions.slice(0, 3).map((session, i) => {
+                const date = session.scheduledAt ? new Date(session.scheduledAt) : null;
+                return (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl">
+                    {date && (
+                      <div className="w-12 h-14 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center shrink-0">
+                        <span className="text-[10px] text-emerald-600 font-bold uppercase">{date.toLocaleDateString('en-IN', { month: 'short' })}</span>
+                        <span className="text-lg font-extrabold text-slate-800 -mt-0.5">{date.getDate()}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-800">{session.subject} – {session.grade || ''}</p>
+                      <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                        <Users size={10} /> {session.student?.name || 'Student'}
+                      </p>
+                      <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                        <MapPin size={10} /> {session.address?.area || 'Location'}
+                      </p>
                     </div>
-                    <span className="text-[10px] text-slate-400 shrink-0">{alert.time}</span>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs font-bold text-emerald-600">₹{session.amount || 0}</p>
+                      <p className="text-[10px] text-slate-400">{session.duration || 60} min</p>
+                      <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] font-bold mt-0.5 inline-block">
+                        {session.status}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </div>
-        </section>
+          )}
+        </div>
 
-        {/* Performance */}
-        <section className="grid gap-5 xl:grid-cols-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
-            <p className="text-sm font-bold text-slate-900 mb-4">Performance Metrics</p>
-            <div className="space-y-4">
-              <ProgressBar label="Response Time" value={92} color="#2563eb" />
-              <ProgressBar label="Acceptance Rate" value={89} color="#059669" />
-              <ProgressBar label="Cancellation Rate" value={6} color="#ef4444" />
-              <ProgressBar label="Student Satisfaction" value={96} color="#f59e0b" />
-            </div>
+        {/* My Leads */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-800">My Leads</h3>
+            <Link href="/dashboard/tutor?section=leads" className="text-[11px] font-semibold text-emerald-600">View All</Link>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-bold text-slate-900 mb-4">Live Classes</p>
-            <div className="space-y-2.5">
-              {['Zoom', 'Google Meet', 'In-app'].map((tool) => (
-                <div key={tool} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
-                  <span className="text-[11px] font-semibold text-slate-700">{tool}</span>
-                  <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Connected
+          {leads.length === 0 ? (
+            <div className="text-center py-8">
+              <FileText size={36} className="mx-auto text-slate-200 mb-2" />
+              <p className="text-xs text-slate-400">No leads yet. Complete your profile to start receiving leads.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {leads.slice(0, 4).map((lead, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 text-sm font-bold shrink-0">
+                    {lead.student?.name?.charAt(0) || 'S'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-slate-800 truncate">{lead.student?.name || 'Student'}</p>
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {lead.classLevel} • {lead.subject}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    lead.status === 'new' ? 'bg-blue-50 text-blue-600' :
+                    lead.status === 'contacted' ? 'bg-amber-50 text-amber-600' :
+                    lead.status === 'responded' ? 'bg-emerald-50 text-emerald-600' :
+                    lead.status === 'converted' ? 'bg-green-50 text-green-600' :
+                    'bg-slate-50 text-slate-400'
+                  }`}>
+                    {lead.status?.charAt(0).toUpperCase() + lead.status?.slice(1)}
                   </span>
                 </div>
               ))}
             </div>
-          </div>
+          )}
+        </div>
+      </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-bold text-slate-900 mb-4">KYC Documents</p>
-            <div className="space-y-2.5">
-              {[
-                { label: 'KYC Status', status: 'Verified', ok: true },
-                { label: 'PAN Card', status: 'Uploaded', ok: true },
-                { label: 'Aadhaar', status: 'Uploaded', ok: true },
-                { label: 'Degree', status: 'Pending', ok: false },
-              ].map((doc) => (
-                <div key={doc.label} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
-                  <span className="text-[11px] font-medium text-slate-700">{doc.label}</span>
-                  <span className={`text-[10px] font-bold ${doc.ok ? 'text-emerald-600' : 'text-amber-600'}`}>{doc.status}</span>
-                </div>
-              ))}
+      {/* ── Earnings Overview + Lead Policy + Progress ─────────────────────── */}
+      <div className="grid lg:grid-cols-3 gap-4 mb-6">
+        {/* Earnings Overview */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <h3 className="text-sm font-bold text-slate-800 mb-3">Earnings Overview</h3>
+          <div className="space-y-2 mb-3">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Total Earnings</span>
+              <span className="font-bold text-slate-800">₹{(stats.grossEarnings || 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Commission Paid</span>
+              <span className="font-bold text-red-500">- ₹{(stats.totalCommission || 0).toLocaleString()}</span>
+            </div>
+            <hr className="border-slate-100" />
+            <div className="flex justify-between text-xs">
+              <span className="font-semibold text-slate-600">Net Earnings</span>
+              <span className="font-extrabold text-emerald-600">₹{(stats.totalEarnings || 0).toLocaleString()}</span>
             </div>
           </div>
-        </section>
+          <MiniLineChart data={monthlyEarnings.map(m => m.earnings)} height={60} />
+          <Link href="/dashboard/tutor/earnings" className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+            View Full Report <ArrowRight size={12} />
+          </Link>
+        </div>
+
+        {/* Lead Policy */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <h3 className="text-sm font-bold text-slate-800 mb-2">Lead Usage & Replacement Policy</h3>
+          <div className="bg-blue-50 rounded-xl p-3 mb-3">
+            <p className="text-[11px] text-blue-800 leading-relaxed">
+              <strong>Every verified tutor</strong> gets {commissionStructure?.freeLeadsPerMonth || 5} free leads per month.
+              If a lead is fake or not responding, you can <strong>report it within {commissionStructure?.leadDisputeWindowHours || 48} hours</strong> and
+              we&apos;ll replace it automatically.
+            </p>
+          </div>
+          <div className="space-y-2 text-[11px]">
+            <div className="flex justify-between"><span className="text-slate-400">Free Leads Used</span><span className="font-bold text-slate-700">{freeLeads.used} / {freeLeads.limit}</span></div>
+            <div className="w-full bg-slate-100 rounded-full h-2">
+              <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, (freeLeads.used / (typeof freeLeads.limit === 'number' ? freeLeads.limit : 5)) * 100)}%` }} />
+            </div>
+            <div className="flex justify-between"><span className="text-slate-400">Remaining</span><span className="font-bold text-emerald-600">{freeLeads.remaining}</span></div>
+          </div>
+          <button className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700">
+            <AlertCircle size={12} /> Report a Lead
+          </button>
+        </div>
+
+        {/* Progress Tracker */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <h3 className="text-sm font-bold text-slate-800 mb-3">Your Progress</h3>
+
+          {/* Circular progress */}
+          <div className="flex items-center justify-center mb-3">
+            <div className="relative w-24 h-24">
+              <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                <circle
+                  cx="50" cy="50" r="42" fill="none" stroke="#059669" strokeWidth="8"
+                  strokeDasharray={`${Math.min(100, (completedSessions / 100) * 100) * 2.64} 264`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xl font-extrabold text-slate-800">{completedSessions}</span>
+                <span className="text-[9px] text-slate-400">of 100</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <p className="text-xs font-semibold text-slate-700">
+              Current Tier: <span className="text-emerald-600">{commission.tier || '0 – 20 Sessions'}</span>
+            </p>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              Complete {Math.max(0, (completedSessions <= 20 ? 21 : completedSessions <= 100 ? 101 : 0) - completedSessions)} more sessions to unlock lower commission
+            </p>
+          </div>
+
+          <Link href="#" className="mt-3 block text-center text-[11px] font-semibold text-emerald-600">
+            <Info size={12} className="inline mr-0.5" /> How tiers work?
+          </Link>
+        </div>
       </div>
-    </main>
+
+      {/* ── Recent Payouts ─────────────────────────────────────────────────── */}
+      {recentPayouts.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 mb-6">
+          <h3 className="text-sm font-bold text-slate-800 mb-3">Recent Payouts</h3>
+          <div className="grid sm:grid-cols-3 gap-3">
+            {recentPayouts.map((payout, i) => (
+              <div key={i} className="bg-slate-50 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-slate-400">{payout.payoutDisplayId}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                    payout.status === 'paid' ? 'bg-emerald-50 text-emerald-600' :
+                    payout.status === 'pending' ? 'bg-amber-50 text-amber-600' :
+                    'bg-slate-100 text-slate-400'
+                  }`}>
+                    {payout.status}
+                  </span>
+                </div>
+                <p className="text-lg font-extrabold text-slate-800">₹{payout.amount?.toLocaleString()}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {payout.createdAt ? new Date(payout.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Bottom CTA ─────────────────────────────────────────────────────── */}
+      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Zap size={28} className="text-amber-300" />
+          <div>
+            <h3 className="text-lg font-bold text-white">Become a Top Rated Tutor!</h3>
+            <p className="text-xs text-emerald-100">Complete your profile, respond to leads quickly, and maintain high ratings.</p>
+          </div>
+        </div>
+        <Link
+          href="/dashboard/tutor/profile"
+          className="px-6 py-2.5 bg-white text-emerald-700 rounded-xl text-sm font-bold hover:bg-emerald-50 transition shrink-0"
+        >
+          Boost My Profile
+        </Link>
+      </div>
+    </div>
   );
 }

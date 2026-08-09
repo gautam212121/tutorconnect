@@ -7,6 +7,19 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 const MOCK_STUDENTS = [];
 
+const mapUserToStudent = (u) => ({
+  id: u._id || u.id,
+  name: u.name || 'Unnamed Student',
+  email: u.email || '',
+  grade: u.grade || 'N/A',
+  location: u.address?.city || u.address?.full || 'India',
+  bookings: 0,
+  spent: '₹0',
+  status: u.status || 'active',
+  joined: u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN') : 'Recently',
+  premium: false,
+});
+
 const statusColors = {
   active: 'bg-emerald-100 text-emerald-700',
   inactive: 'bg-slate-100 text-slate-500',
@@ -20,19 +33,23 @@ export default function StudentsAdminPage() {
   const [selectedTab, setSelectedTab] = useState('all');
 
   useEffect(() => {
-    fetch(`${API}/api/v1/admin/users?role=student`)
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setApiStudents(data.map(u => ({
-            id: u.id, name: u.name, email: u.email,
-            grade: 'N/A', location: 'India',
-            bookings: 0, spent: '₹0', status: 'active',
-            joined: 'Recently', premium: false,
-          })));
+    const token = typeof window !== 'undefined' ? localStorage.getItem('tutorconnect-token') : null;
+
+    fetch(`${API}/api/v1/admin/users?role=student`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => null);
+        if (!r.ok) throw new Error(data?.message || 'Failed to load students');
+        if (Array.isArray(data)) {
+          setApiStudents(data.map(mapUserToStudent));
+        } else {
+          setApiStudents([]);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setApiStudents([]);
+      });
   }, []);
 
   const allStudents = [...students, ...apiStudents.filter(a => !students.find(s => s.email === a.email))];

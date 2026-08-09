@@ -7,24 +7,7 @@ const mongoUri = process.env.MONGODB_URI;
 const mongoDbName = process.env.MONGODB_DB_NAME || 'tutorconnect';
 
 const initialState = {
-  bookings: [
-    {
-      id: 'b1',
-      student: 'Asha',
-      tutor: 'Aisha Khan',
-      time: 'Yesterday',
-      status: 'Completed',
-      message: 'Need support for mathematics revision.',
-    },
-    {
-      id: 'b2',
-      student: 'Nikhil',
-      tutor: 'Rajat Sharma',
-      time: '2 days ago',
-      status: 'Confirmed',
-      message: 'Looking for physics exam prep.',
-    },
-  ],
+  bookings: [],
   users: [],
 };
 
@@ -59,12 +42,12 @@ export async function ensureMongoConnection() {
   const mongoUri = process.env.MONGODB_URI;
   const mongoDbName = process.env.MONGODB_DB_NAME || 'tutorconnect';
 
-  if (!mongoUri) {
+  if (!mongoUri || process.env.NODE_ENV === 'test' || process.env.DISABLE_MONGO === 'true') {
     return false;
   }
 
   try {
-    mongoClient = new MongoClient(mongoUri, { serverSelectionTimeoutMS: 5000 });
+    mongoClient = new MongoClient(mongoUri, { serverSelectionTimeoutMS: 1000 });
     await mongoClient.connect();
     mongoDb = mongoClient.db(mongoDbName);
     return true;
@@ -97,13 +80,13 @@ export async function getBookings() {
 
 export async function addBooking(booking) {
   if (await ensureMongoConnection()) {
-    const created = { id: `b${Date.now()}`, ...booking };
+    const created = { id: booking.id || `b${Date.now()}`, ...booking };
     await mongoDb.collection('bookings').insertOne(created);
     return created;
   }
 
   await ensureStorePromise;
-  const created = { id: `b${state.bookings.length + 1}`, ...booking };
+  const created = { id: booking.id || `b${state.bookings.length + 1}`, ...booking };
   state.bookings.unshift(created);
   await persistStore();
   return created;
@@ -111,8 +94,14 @@ export async function addBooking(booking) {
 
 export async function updateBookingStatus(id, status) {
   if (await ensureMongoConnection()) {
+    const query = { $or: [{ id }, { uuid: id }] };
+    try {
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        query.$or.push({ _id: new mongoose.Types.ObjectId(id) });
+      }
+    } catch {}
     const updated = await mongoDb.collection('bookings').findOneAndUpdate(
-      { id },
+      query,
       { $set: { status } },
       { returnDocument: 'after' },
     );
@@ -120,7 +109,7 @@ export async function updateBookingStatus(id, status) {
   }
 
   await ensureStorePromise;
-  const booking = state.bookings.find((entry) => entry.id === id);
+  const booking = state.bookings.find((entry) => entry.id === id || entry._id === id || entry.uuid === id);
   if (booking) {
     booking.status = status;
     await persistStore();

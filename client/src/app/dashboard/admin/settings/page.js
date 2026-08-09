@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from 'react';
-import { Save, Settings, Globe, Lock, Mail, Bell, CreditCard, Palette, Database, Shield, Smartphone } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, Settings, Globe, Lock, Mail, Bell, CreditCard, Palette, Database, Shield, Smartphone, Image } from 'lucide-react';
+import { adminApi } from '../../../../lib/api';
 
 const SECTIONS = [
   { id: 'general', label: 'General', icon: Settings },
+  { id: 'hero', label: 'Hero Section', icon: Image },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'payment', label: 'Payment', icon: CreditCard },
@@ -53,13 +55,34 @@ export default function SettingsAdminPage() {
     primaryColor: '#056852',
     accentColor: '#0ea5e9',
     darkMode: false,
+    heroTitle: 'Quality Home Tuition',
+    heroSubtitle: 'Verified tutors at your doorstep',
+    heroImage: '/hero-banner.jpg',
   });
 
   const update = (key, val) => setSettings(p => ({ ...p, [key]: val }));
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  useEffect(() => {
+    adminApi.getSettings()
+      .then(data => {
+        if (data) {
+          setSettings(prev => ({
+            ...prev,
+            ...data
+          }));
+        }
+      })
+      .catch(err => console.error('Failed to load settings', err));
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await adminApi.updateSettings(settings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error('Failed to save settings', err);
+    }
   };
 
   return (
@@ -102,6 +125,60 @@ export default function SettingsAdminPage() {
 
         {/* Settings Content */}
         <div className="lg:col-span-3 space-y-4">
+          {activeSection === 'hero' && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+              <p className="text-sm font-bold text-slate-900">Hero Section Settings</p>
+              
+              <div>
+                <label className="text-[11px] font-semibold uppercase text-slate-400 mb-1 block">Hero Title</label>
+                <input
+                  type="text"
+                  value={settings.heroTitle || ''}
+                  onChange={e => update('heroTitle', e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-900 focus:border-[#056852] focus:bg-white focus:outline-none transition"
+                  placeholder="e.g. Quality Home Tuition"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold uppercase text-slate-400 mb-1 block">Hero Subtitle</label>
+                <input
+                  type="text"
+                  value={settings.heroSubtitle || ''}
+                  onChange={e => update('heroSubtitle', e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-900 focus:border-[#056852] focus:bg-white focus:outline-none transition"
+                  placeholder="e.g. Verified tutors at your doorstep"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold uppercase text-slate-400 mb-2 block">Hero Background Image</label>
+                <div className="flex items-center gap-4">
+                  {settings.heroImage ? (
+                    <img src={settings.heroImage} alt="Hero Preview" className="h-20 w-32 rounded-xl object-cover border border-slate-200 shadow-sm" />
+                  ) : (
+                    <div className="flex h-20 w-32 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-400 text-xs">
+                      No Image
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => update('heroImage', reader.result);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#056852] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-[#045241] cursor-pointer focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeSection === 'general' && (
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
               <p className="text-sm font-bold text-slate-900">General Settings</p>

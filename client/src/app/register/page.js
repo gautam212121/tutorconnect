@@ -1,70 +1,17 @@
 "use client";
 
-import Link from 'next/link';
-import AuthForm from '../components/AuthForm';
-import { BookOpen, ArrowLeft, Sparkles } from 'lucide-react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterPage() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/?register=true');
+  }, [router]);
+
   return (
-    <main className="min-h-screen bg-slate-50 relative flex flex-col justify-between overflow-hidden py-8 px-4 sm:px-6">
-      {/* Background Decorative Gradients */}
-      <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-teal-400/10 blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-10 -left-32 h-96 w-96 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none"></div>
-
-      {/* Header Bar */}
-      <div className="mx-auto w-full max-w-5xl flex items-center justify-between z-10">
-        <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e6f7f2] text-[#056852] border border-[#b2e8d8] transition group-hover:scale-105">
-            <BookOpen size={22} strokeWidth={2.2} />
-          </div>
-          <span className="font-extrabold text-slate-900">
-            Tutor<span className="text-[#056852]">Connect</span>
-          </span>
-        </Link>
-
-        <Link
-          href="/"
-          className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-semibold text-slate-700 backdrop-blur-md shadow-sm hover:bg-slate-100 transition"
-        >
-          <ArrowLeft size={15} />
-          <span>Back to Home</span>
-        </Link>
-      </div>
-
-      {/* Main Register Container */}
-      <div className="my-auto mx-auto w-full max-w-2xl z-10 py-6">
-        <div className="rounded-[32px] border border-slate-200/80 bg-white/90 p-8 shadow-[0_25px_60px_-15px_rgba(15,23,42,0.1)] backdrop-blur-xl">
-          <div className="text-center mb-6">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e6f7f2] text-[#056852] mb-3 border border-[#b2e8d8]">
-              <Sparkles size={24} />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Student Registration</h1>
-            <p className="mt-1.5 text-xs text-slate-500">
-              Join 6,800+ students and find expert tutors on TutorConnect.
-            </p>
-          </div>
-
-          <AuthForm mode="register" selectedRole="student" />
-
-          <p className="mt-6 text-center text-xs text-slate-500">
-            Already have an account?{' '}
-            <Link href="/login" className="font-bold text-[#056852] hover:underline">
-              Log in
-            </Link>
-          </p>
-          <p className="mt-2 text-center text-xs text-slate-500">
-            Looking to teach?{' '}
-            <Link href="/careers" className="font-bold text-[#056852] hover:underline">
-              Apply as a Tutor
-            </Link>
-          </p>
-        </div>
-      </div>
-
-      {/* Footer Branding */}
-      <div className="mx-auto w-full max-w-5xl text-center text-xs text-slate-400 z-10">
-        © 2026 TutorConnect. India's trusted 1-on-1 tutoring platform.
-      </div>
-    </main>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <p className="text-slate-500 text-sm">Redirecting to registration...</p>
+    </div>
   );
 }

@@ -6,8 +6,10 @@ const paymentSchema = new mongoose.Schema({
   tutor:          { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 
   totalAmount:    { type: Number, required: true },
-  tutorShare:     { type: Number, required: true },   // 80%
-  adminShare:     { type: Number, required: true },   // 20%
+  tutorShare:     { type: Number, required: true },
+  adminShare:     { type: Number, required: true },
+  adminRate:      { type: Number, required: true },
+  tutorRate:      { type: Number, required: true },
 
   status:         { type: String, enum: ['Pending', 'Completed', 'Refunded', 'Failed'], default: 'Pending' },
   method:         { type: String, enum: ['Razorpay', 'Cash', 'Mock'], default: 'Razorpay' },

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, ChevronDown, Globe, Search, User, LogOut, LayoutDashboard, Video, Home, Menu } from 'lucide-react';
+import RegisterModal from './RegisterModal';
 
 export default function Navbar({ onOpenHowItWorks }) {
   const [findTutorsOpen, setFindTutorsOpen] = useState(false);
@@ -13,7 +14,19 @@ export default function Navbar({ onOpenHowItWorks }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [selectedLang, setSelectedLang] = useState('EN');
   const [user, setUser] = useState(null);
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('register') === 'true') {
+        setIsRegisterOpen(true);
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, []);
 
   const findTutorsRef = useRef(null);
   const subjectsRef = useRef(null);
@@ -97,113 +110,6 @@ export default function Navbar({ onOpenHowItWorks }) {
 
         {/* Center Navigation Links */}
         <div className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-          {/* Find Tutors Dropdown */}
-          <div className="relative" ref={findTutorsRef}>
-            <button
-              onClick={() => {
-                setFindTutorsOpen(!findTutorsOpen);
-                setSubjectsOpen(false);
-                setLangOpen(false);
-                setUserMenuOpen(false);
-              }}
-              className="flex items-center gap-1.5 py-1 text-slate-700 transition hover:text-[#056852] focus:outline-none"
-            >
-              <span>Find Tutors</span>
-              <ChevronDown size={15} className={`transition-transform duration-200 ${findTutorsOpen ? 'rotate-180 text-[#056852]' : 'text-slate-400'}`} />
-            </button>
-
-            {findTutorsOpen && (
-              <div className="absolute left-0 mt-3 w-56 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-xl ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-150">
-                <Link
-                  href="/tutors"
-                  onClick={() => setFindTutorsOpen(false)}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-[#e6f7f2] hover:text-[#056852] transition"
-                >
-                  <Search size={16} className="text-[#056852]" />
-                  <div>
-                    <div className="font-semibold">Browse All Tutors</div>
-                    <div className="text-xs text-slate-400">1,280+ verified experts</div>
-                  </div>
-                </Link>
-                <Link
-                  href="/tutors?mode=online"
-                  onClick={() => setFindTutorsOpen(false)}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-[#e6f7f2] hover:text-[#056852] transition"
-                >
-                  <Video size={16} className="text-[#056852]" />
-                  <div>
-                    <div className="font-semibold">Online Classes</div>
-                    <div className="text-xs text-slate-400">Interactive live 1-on-1</div>
-                  </div>
-                </Link>
-                <Link
-                  href="/tutors?mode=home"
-                  onClick={() => setFindTutorsOpen(false)}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-[#e6f7f2] hover:text-[#056852] transition"
-                >
-                  <Home size={16} className="text-[#056852]" />
-                  <div>
-                    <div className="font-semibold">Home Tutors</div>
-                    <div className="text-xs text-slate-400">Personalized in-person</div>
-                  </div>
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Subjects Dropdown */}
-          <div className="relative" ref={subjectsRef}>
-            <button
-              onClick={() => {
-                setSubjectsOpen(!subjectsOpen);
-                setFindTutorsOpen(false);
-                setLangOpen(false);
-                setUserMenuOpen(false);
-              }}
-              className="flex items-center gap-1.5 py-1 text-slate-700 transition hover:text-[#056852] focus:outline-none"
-            >
-              <span>Subjects</span>
-              <ChevronDown size={15} className={`transition-transform duration-200 ${subjectsOpen ? 'rotate-180 text-[#056852]' : 'text-slate-400'}`} />
-            </button>
-
-            {subjectsOpen && (
-              <div className="absolute left-0 mt-3 w-60 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-xl ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-150">
-                <Link
-                  href="/tutors?subject=math"
-                  onClick={() => setSubjectsOpen(false)}
-                  className="flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-[#e6f7f2] hover:text-[#056852] transition"
-                >
-                  <span>Mathematics</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">180</span>
-                </Link>
-                <Link
-                  href="/tutors?subject=physics"
-                  onClick={() => setSubjectsOpen(false)}
-                  className="flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-[#e6f7f2] hover:text-[#056852] transition"
-                >
-                  <span>Physics & Science</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">142</span>
-                </Link>
-                <Link
-                  href="/tutors?subject=english"
-                  onClick={() => setSubjectsOpen(false)}
-                  className="flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-[#e6f7f2] hover:text-[#056852] transition"
-                >
-                  <span>English & Communication</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">126</span>
-                </Link>
-                <Link
-                  href="/tutors?subject=coding"
-                  onClick={() => setSubjectsOpen(false)}
-                  className="flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-[#e6f7f2] hover:text-[#056852] transition"
-                >
-                  <span>Coding & Tech</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">98</span>
-                </Link>
-              </div>
-            )}
-          </div>
-
           <button
             onClick={() => onOpenHowItWorks && onOpenHowItWorks()}
             className="py-1 text-slate-700 transition hover:text-[#056852] focus:outline-none"
@@ -311,13 +217,18 @@ export default function Navbar({ onOpenHowItWorks }) {
             <div className="flex items-center gap-2">
               <Link
                 href="/login"
-                className="flex h-8 w-8 md:h-auto md:w-auto items-center justify-center rounded-full border border-slate-300 md:px-4 md:py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-400 hover:bg-slate-50 transition shadow-sm"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-xs font-semibold text-slate-700 transition shadow-sm hover:border-slate-400 hover:bg-slate-50 md:h-auto md:w-auto md:px-4 md:py-1.5"
                 title="Login"
               >
                 <User size={16} className="md:hidden" />
                 <span className="hidden md:inline">Login</span>
               </Link>
-              {/* Register button removed per request */}
+              <button
+                onClick={() => setIsRegisterOpen(true)}
+                className="rounded-full bg-[#056852] px-3 py-1.5 text-[11px] font-bold text-white transition shadow-sm hover:bg-[#045241] md:px-4 md:text-xs"
+              >
+                Register
+              </button>
             </div>
           )}
 
@@ -335,14 +246,13 @@ export default function Navbar({ onOpenHowItWorks }) {
       {mobileMenuOpen && (
         <div className="absolute left-4 right-4 top-[72px] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xl md:hidden animate-in fade-in slide-in-from-top-2 duration-150">
           <div className="flex flex-col gap-4">
-            <Link href="/tutors" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>Find Tutors</Link>
-            <Link href="/tutors?subject=math" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>Subjects</Link>
             <button onClick={() => { onOpenHowItWorks && onOpenHowItWorks(); setMobileMenuOpen(false); }} className="text-left text-sm font-medium text-slate-700 hover:text-[#056852]">How it works</button>
             <Link href="/careers" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>Job Careers</Link>
             <a href="#why-us" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>Why us</a>
           </div>
         </div>
       )}
+      <RegisterModal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} />
     </nav>
   );
 }

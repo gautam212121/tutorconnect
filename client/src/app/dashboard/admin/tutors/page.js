@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Search, Filter, CheckCircle2, XCircle, AlertTriangle, Eye, Trash2, Ban, Star, Shield, UserCheck, MoreVertical, ChevronDown } from 'lucide-react';
+import { Search, Filter, CheckCircle2, XCircle, AlertTriangle, Eye, Trash2, Ban, Star, Shield, UserCheck, MoreVertical, ChevronDown, User, Upload } from 'lucide-react';
+import { adminApi } from '../../../../lib/api';
+import { useSocket } from '../../../../hooks/useSocket';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -15,6 +17,14 @@ const statusStyles = {
   featured: 'bg-blue-100 text-blue-700',
 };
 
+const normalizeTutorSubjects = (subjects) => {
+  if (Array.isArray(subjects)) return subjects.filter(Boolean);
+  if (typeof subjects === 'string') {
+    return subjects.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  return ['General'];
+};
+
 export default function TutorsAdminPage() {
   const [tutors, setTutors] = useState(MOCK_TUTORS);
   const [apiTutors, setApiTutors] = useState([]);
@@ -24,55 +34,137 @@ export default function TutorsAdminPage() {
   const [selectedTab, setSelectedTab] = useState('all');
   const [selectedTutor, setSelectedTutor] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newTutor, setNewTutor] = useState({ name: '', email: '', password: '', mobile: '', location: '' });
+  const [newTutor, setNewTutor] = useState({
+    name: '', email: '', password: '', mobile: '', location: '',
+    headline: 'Tutor', experience: '1 year', subjects: '', price: 500,
+    mode: ['Online'], rating: 5, reviews: 0, avatar: ''
+  });
+
+  const socket = useSocket();
+
+  const fetchTutors = async () => {
+    try {
+      const data = await adminApi.getUsers('tutor');
+      if (Array.isArray(data)) {
+        setApiTutors(data.map(u => ({
+          id: u._id || u.id, name: u.name, email: u.email,
+          subjects: normalizeTutorSubjects(u.subjects), rating: u.rating ?? 5, location: u.location || 'India',
+          status: u.status || 'pending', experience: u.experience || 'N/A', students: u.students || 0, revenue: '₹0',
+          mobile: u.mobile || 'N/A', qualification: u.qualification || 'N/A', classesTaught: u.classesTaught || [],
+          mode: u.mode || ['Online'], languages: u.languages || [], feeType: u.feeType || 'Hourly',
+          price: u.price || 0, availableDays: u.availableDays || [], availableTimeSlots: u.availableTimeSlots || 'N/A',
+          address: u.address || { city: '', area: '', pincode: '' }, avatar: u.avatar || null
+        })));
+      }
+    } catch (err) {
+      setApiTutors([]);
+    }
+  };
 
   useEffect(() => {
-    fetch(`${API}/api/v1/admin/users?role=tutor`)
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setApiTutors(data.map(u => ({
-            id: u.id, name: u.name, email: u.email,
-            subjects: u.subjects || ['General'], rating: u.rating || 0, location: u.location || 'India',
-            status: u.status || 'pending', experience: u.experience || 'N/A', students: u.students || 0, revenue: '₹0',
-            mobile: u.mobile || 'N/A', qualification: u.qualification || 'N/A', classesTaught: u.classesTaught || [],
-            mode: u.mode || ['Online'], languages: u.languages || [], feeType: u.feeType || 'Hourly',
-            price: u.price || 0, availableDays: u.availableDays || [], availableTimeSlots: u.availableTimeSlots || 'N/A',
-            address: u.address || { city: '', area: '', pincode: '' }
-          })));
-        }
-      })
-      .catch(() => {});
+    fetchTutors();
   }, []);
 
-  const allTutors = [...tutors, ...apiTutors.filter(a => !tutors.find(t => t.email === a.email))];
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleCreated = (newUser) => {
+      if (newUser.role === 'tutor') {
+        const formatted = {
+          id: newUser._id || newUser.id, name: newUser.name, email: newUser.email,
+          subjects: normalizeTutorSubjects(newUser.subjects), rating: newUser.rating ?? 5, location: newUser.location || 'India',
+          status: newUser.status || 'pending', experience: newUser.experience || 'N/A', students: newUser.students || 0, revenue: '₹0',
+          mobile: newUser.mobile || 'N/A', qualification: newUser.qualification || 'N/A', classesTaught: newUser.classesTaught || [],
+          mode: newUser.mode || ['Online'], languages: newUser.languages || [], feeType: newUser.feeType || 'Hourly',
+          price: newUser.price || 0, availableDays: newUser.availableDays || [], availableTimeSlots: newUser.availableTimeSlots || 'N/A',
+          address: newUser.address || { city: '', area: '', pincode: '' }, avatar: newUser.avatar || null
+        };
+        setApiTutors(prev => {
+          if (prev.find(u => u.id === formatted.id || u.email === formatted.email)) return prev;
+          return [formatted, ...prev];
+        });
+      }
+    };
 
-  const tabs = [
-    { id: 'all', label: 'All Tutors', count: allTutors.length },
-    { id: 'pending', label: 'Pending', count: allTutors.filter(t => t.status === 'pending').length },
-    { id: 'verified', label: 'Verified', count: allTutors.filter(t => t.status === 'verified').length },
-    { id: 'suspended', label: 'Suspended', count: allTutors.filter(t => t.status === 'suspended').length },
-    { id: 'rejected', label: 'Rejected', count: allTutors.filter(t => t.status === 'rejected').length },
-  ];
+    const handleUpdated = (updatedUser) => {
+      if (updatedUser.role === 'tutor') {
+        setApiTutors(prev => prev.map(u => (u.id === updatedUser._id || u.id === updatedUser.id) ? {
+          ...u,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          subjects: updatedUser.subjects || u.subjects,
+          rating: updatedUser.rating ?? u.rating,
+          reviews: updatedUser.reviews ?? u.reviews,
+          location: updatedUser.location || u.location,
+          status: updatedUser.status || u.status,
+          experience: updatedUser.experience || u.experience,
+          mobile: updatedUser.mobile || u.mobile,
+          qualification: updatedUser.qualification || u.qualification,
+          classesTaught: updatedUser.classesTaught || u.classesTaught,
+          mode: updatedUser.mode || u.mode,
+          price: updatedUser.price ?? u.price,
+          avatar: updatedUser.avatar || u.avatar
+        } : u));
+      }
+    };
 
-  const handleAction = (id, action) => {
-    setTutors(prev => prev.map(t => t.id === id ? { ...t, status: action } : t));
+    const handleDeleted = (id) => {
+      setApiTutors(prev => prev.filter(u => u.id !== id));
+    };
+
+    socket.on('userCreated', handleCreated);
+    socket.on('userUpdated', handleUpdated);
+    socket.on('userDeleted', handleDeleted);
+
+    return () => {
+      socket.off('userCreated', handleCreated);
+      socket.off('userUpdated', handleUpdated);
+      socket.off('userDeleted', handleDeleted);
+    };
+  }, [socket]);
+
+  const handleAction = async (id, action) => {
+    try {
+      const updated = await adminApi.updateUser(id, { status: action, verified: action === 'verified' });
+      if (updated) {
+        setApiTutors(prev => prev.map(t => t.id === id ? { ...t, status: action } : t));
+      }
+    } catch (err) {
+      console.error(err);
+    }
     setActionMenu(null);
   };
 
   const handleAddTutor = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API}/api/v1/admin/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newTutor, role: 'tutor', status: 'verified', verified: true, rating: 5, reviews: 0 })
-      });
-      if (res.ok) {
-        const addedUser = await res.json();
-        setApiTutors(prev => [addedUser, ...prev]);
+      const payload = {
+        ...newTutor,
+        role: 'tutor',
+        status: 'verified',
+        verified: true,
+        subjects: newTutor.subjects ? newTutor.subjects.split(',').map(s => s.trim()).filter(Boolean) : ['General'],
+      };
+
+      const addedUser = await adminApi.createUser(payload);
+
+      if (addedUser) {
+        const formattedUser = {
+          id: addedUser._id || addedUser.id, name: addedUser.name, email: addedUser.email,
+          subjects: normalizeTutorSubjects(addedUser.subjects), rating: addedUser.rating ?? 5, location: addedUser.location || 'India',
+          status: addedUser.status || 'pending', experience: addedUser.experience || 'N/A', students: addedUser.students || 0, revenue: '₹0',
+          mobile: addedUser.mobile || 'N/A', qualification: addedUser.qualification || 'N/A', classesTaught: addedUser.classesTaught || [],
+          mode: addedUser.mode || ['Online'], languages: addedUser.languages || [], feeType: addedUser.feeType || 'Hourly',
+          price: addedUser.price || 0, availableDays: addedUser.availableDays || [], availableTimeSlots: addedUser.availableTimeSlots || 'N/A',
+          address: addedUser.address || { city: '', area: '', pincode: '' }, avatar: addedUser.avatar || null
+        };
+        setApiTutors(prev => [formattedUser, ...prev]);
         setIsAddModalOpen(false);
-        setNewTutor({ name: '', email: '', password: '', mobile: '', location: '' });
+        setNewTutor({
+          name: '', email: '', password: '', mobile: '', location: '',
+          headline: 'Tutor', experience: '1 year', subjects: '', price: 500,
+          mode: ['Online'], rating: 5, reviews: 0, avatar: ''
+        });
       } else {
         alert('Failed to add tutor');
       }
@@ -81,6 +173,14 @@ export default function TutorsAdminPage() {
       alert('Error adding tutor');
     }
   };
+
+  const allTutors = apiTutors.length > 0 ? apiTutors : tutors;
+  const tabs = [
+    { id: 'all', label: 'All Tutors', count: allTutors.length },
+    { id: 'pending', label: 'Pending', count: allTutors.filter((t) => t.status === 'pending').length },
+    { id: 'verified', label: 'Verified', count: allTutors.filter((t) => t.status === 'verified').length },
+    { id: 'suspended', label: 'Suspended', count: allTutors.filter((t) => t.status === 'suspended').length },
+  ];
 
   const filtered = allTutors.filter(t => {
     const matchTab = selectedTab === 'all' || t.status === selectedTab;
@@ -238,7 +338,11 @@ export default function TutorsAdminPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-sm text-slate-400">No tutors found matching your filters</td>
+                  <td colSpan={8} className="py-10 text-center text-sm text-slate-400">
+                    {typeof window !== 'undefined' && !localStorage.getItem('tutorconnect-token')
+                      ? 'Sign in as an admin to load tutor records.'
+                      : 'No tutors found matching your filters'}
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -344,39 +448,137 @@ export default function TutorsAdminPage() {
       {/* Add Tutor Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-[24px] bg-white shadow-2xl overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
-              <h3 className="text-lg font-bold text-slate-900">Add New Tutor</h3>
+          <div className="w-full max-w-lg rounded-[28px] bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50 shrink-0">
+              <h3 className="text-base font-extrabold text-slate-900">Add New Tutor</h3>
               <button onClick={() => setIsAddModalOpen(false)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition">
                 <XCircle size={20} />
               </button>
             </div>
-            <form onSubmit={handleAddTutor} className="p-6 space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Full Name</label>
-                <input required type="text" value={newTutor.name} onChange={e => setNewTutor({...newTutor, name: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[#056852] focus:outline-none" placeholder="e.g. John Doe" />
+            <form onSubmit={handleAddTutor} className="p-6 space-y-5 overflow-y-auto min-h-0">
+              {/* Profile Photo */}
+              <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
+                {newTutor.avatar ? (
+                  <img src={newTutor.avatar} alt="Preview" className="h-14 w-14 rounded-2xl object-cover border border-slate-200" />
+                ) : (
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-slate-400">
+                    <User size={20} />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Avatar Photo</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setNewTutor({ ...newTutor, avatar: reader.result });
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="w-full text-xs text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-[#056852]/10 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-[#056852] hover:file:bg-[#056852]/20 cursor-pointer outline-none"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Email</label>
-                <input required type="email" value={newTutor.email} onChange={e => setNewTutor({...newTutor, email: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[#056852] focus:outline-none" placeholder="john@example.com" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Password</label>
-                <input required type="password" value={newTutor.password} onChange={e => setNewTutor({...newTutor, password: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[#056852] focus:outline-none" placeholder="Secret password" />
-              </div>
+
+              {/* Grid 1: Basic Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Mobile</label>
-                  <input type="text" value={newTutor.mobile} onChange={e => setNewTutor({...newTutor, mobile: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[#056852] focus:outline-none" placeholder="+91..." />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Full Name *</label>
+                  <input required type="text" value={newTutor.name} onChange={e => setNewTutor({...newTutor, name: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" placeholder="e.g. Test Tutor" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Location</label>
-                  <input type="text" value={newTutor.location} onChange={e => setNewTutor({...newTutor, location: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[#056852] focus:outline-none" placeholder="e.g. Delhi" />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Email *</label>
+                  <input required type="email" value={newTutor.email} onChange={e => setNewTutor({...newTutor, email: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" placeholder="tutor@example.com" />
                 </div>
               </div>
-              <div className="pt-2 flex justify-end gap-2">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="rounded-xl px-5 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 transition">Cancel</button>
-                <button type="submit" className="rounded-xl bg-[#056852] px-5 py-2 text-sm font-bold text-white hover:bg-[#045241] transition shadow-md">Add Tutor</button>
+
+              {/* Grid 2: Credentials */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Password *</label>
+                  <input required type="password" value={newTutor.password} onChange={e => setNewTutor({...newTutor, password: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" placeholder="••••••" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Mobile *</label>
+                  <input type="text" value={newTutor.mobile} onChange={e => setNewTutor({...newTutor, mobile: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" placeholder="+91..." />
+                </div>
+              </div>
+
+              {/* Grid 3: Location & Title */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Location *</label>
+                  <input required type="text" value={newTutor.location} onChange={e => setNewTutor({...newTutor, location: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" placeholder="e.g. Delhi" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Headline</label>
+                  <input type="text" value={newTutor.headline} onChange={e => setNewTutor({...newTutor, headline: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" placeholder="e.g. Senior Math Expert" />
+                </div>
+              </div>
+
+              {/* Grid 4: Experience & Price */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Experience *</label>
+                  <input required type="text" value={newTutor.experience} onChange={e => setNewTutor({...newTutor, experience: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" placeholder="e.g. 5 years" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Price per Hour (₹) *</label>
+                  <input required type="number" value={newTutor.price} onChange={e => setNewTutor({...newTutor, price: parseInt(e.target.value) || 0})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" placeholder="e.g. 500" />
+                </div>
+              </div>
+
+              {/* Grid 5: Rating & Reviews */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Rating (1-5)</label>
+                  <input type="number" step="0.1" min="1" max="5" value={newTutor.rating} onChange={e => setNewTutor({...newTutor, rating: parseFloat(e.target.value) || 5})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Reviews Count</label>
+                  <input type="number" value={newTutor.reviews} onChange={e => setNewTutor({...newTutor, reviews: parseInt(e.target.value) || 0})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" />
+                </div>
+              </div>
+
+              {/* Subjects input */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Subjects (Comma separated) *</label>
+                <input required type="text" value={newTutor.subjects} onChange={e => setNewTutor({...newTutor, subjects: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" placeholder="e.g. Mathematics, Science" />
+              </div>
+
+              {/* Teaching Mode checkboxes */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Teaching Mode</label>
+                <div className="flex gap-4">
+                  {['Online', 'Home Tuition', 'Student Home'].map(m => {
+                    const checked = newTutor.mode.includes(m);
+                    return (
+                      <label key={m} className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setNewTutor(prev => {
+                              const newMode = checked ? prev.mode.filter(item => item !== m) : [...prev.mode, m];
+                              return { ...prev, mode: newMode };
+                            });
+                          }}
+                          className="h-4 w-4 accent-[#056852]"
+                        />
+                        {m}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100 shrink-0">
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="rounded-xl px-5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 transition">Cancel</button>
+                <button type="submit" className="rounded-xl bg-[#056852] px-5 py-2 text-xs font-bold text-white hover:bg-[#045241] transition shadow-md">Add Tutor</button>
               </div>
             </form>
           </div>

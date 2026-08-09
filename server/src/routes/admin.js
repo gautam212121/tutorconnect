@@ -1,8 +1,11 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
+import { getBookings, updateBookingStatus } from '../dataStore.js';
 import { User } from '../models/User.js';
 import { Course } from '../models/Course.js';
 import { Booking } from '../models/Booking.js';
+import { CallbackRequest } from '../models/CallbackRequest.js';
 import { Review } from '../models/Review.js';
 import { Notification } from '../models/Notification.js';
 import { Settings } from '../models/Settings.js';
@@ -216,11 +219,55 @@ router.delete('/courses/:id', async (req, res) => {
   }
 });
 
-// ── Bookings ──
+// ── Bookings & Consultation Callbacks ──
 router.get('/bookings', async (req, res) => {
   try {
-    const bookings = await Booking.find().populate('student tutor course').sort({ createdAt: -1 });
-    res.json(bookings);
+    let bookings = [];
+    let callbacks = [];
+
+    if (mongoose.connection.readyState === 1) {
+      bookings = await Booking.find().populate('student tutor course').sort({ createdAt: -1 });
+      callbacks = await CallbackRequest.find().populate('tutor', 'name avatar subjects rating location headline phone email mode experience').sort({ createdAt: -1 });
+    } else {
+      const storeBookings = await getBookings();
+      bookings = storeBookings || [];
+    }
+
+    const formattedCallbacks = (callbacks || []).map(c => ({
+      _id: c._id,
+      id: c._id ? c._id.toString() : c.id,
+      requestType: 'consultation',
+      source: 'callback-form',
+      studentSnapshot: {
+        name: c.name,
+        phone: c.phone,
+        role: c.role || 'student',
+        classLevel: c.classLevel,
+        grade: c.classLevel,
+        subject: c.subject,
+        location: c.location || 'Lucknow',
+        mode: c.mode || 'Home',
+      },
+      subject: c.subject,
+      grade: c.classLevel,
+      location: c.location || 'Lucknow',
+      examType: 'Free Consultation',
+      mode: c.mode || 'Home',
+      tutor: c.tutor,
+      status: c.status || 'Pending',
+      amount: 0,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      isCallback: true,
+    }));
+
+    const combined = [
+      ...bookings.map(b => (b && typeof b.toObject === 'function') ? b.toObject() : b),
+      ...formattedCallbacks
+    ];
+    combined.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+    res.json(combined);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -228,9 +275,75 @@ router.get('/bookings', async (req, res) => {
 
 router.put('/bookings/:id', async (req, res) => {
   try {
-    const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('student tutor course');
-    getIo(req)?.emit('bookingUpdated', booking);
-    res.json(booking);
+    if (mongoose.connection.readyState === 1) {
+      let booking = await Booking.findById(req.params.id);
+      if (booking) {
+        booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('student tutor course');
+        getIo(req)?.emit('bookingUpdated', booking);
+        return res.json(booking);
+      }
+
+      let callback = await CallbackRequest.findById(req.params.id);
+      if (callback) {
+        const updateData = {};
+        if (req.body.status) updateData.status = req.body.status;
+        if (req.body.tutor) updateData.tutor = req.body.tutor;
+
+        callback = await CallbackRequest.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('tutor', 'name avatar subjects rating location headline phone email mode experience');
+        const formatted = {
+          _id: callback._id,
+          id: callback._id.toString(),
+          requestType: 'consultation',
+          studentSnapshot: {
+            name: callback.name,
+            phone: callback.phone,
+            role: callback.role || 'student',
+            classLevel: callback.classLevel,
+            grade: callback.classLevel,
+            subject: callback.subject,
+            location: callback.location || 'Lucknow',
+            mode: callback.mode || 'Home',
+          },
+          subject: callback.subject,
+          grade: callback.classLevel,
+          location: callback.location || 'Lucknow',
+          examType: 'Free Consultation',
+          mode: callback.mode || 'Home',
+          tutor: callback.tutor,
+          status: callback.status,
+          createdAt: callback.createdAt,
+          updatedAt: callback.updatedAt,
+          isCallback: true,
+        };
+        getIo(req)?.emit('bookingUpdated', formatted);
+        return res.json(formatted);
+      }
+    } else {
+      const updated = await updateBookingStatus(req.params.id, req.body.status);
+      if (updated) return res.json(updated);
+    }
+
+    res.status(404).json({ message: 'Booking or Callback request not found' });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// ── Callbacks Specific Endpoints ──
+router.get('/callbacks', async (req, res) => {
+  try {
+    const callbacks = await CallbackRequest.find().sort({ createdAt: -1 });
+    res.json(callbacks);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.put('/callbacks/:id', async (req, res) => {
+  try {
+    const callback = await CallbackRequest.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    getIo(req)?.emit('callbackUpdated', callback);
+    res.json(callback);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }

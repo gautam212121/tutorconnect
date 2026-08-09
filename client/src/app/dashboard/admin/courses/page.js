@@ -32,6 +32,9 @@ export default function CoursesAdminPage() {
   const [pending, setPending] = useState([]); // Real-world: fetch from API
   const [activeTab, setActiveTab] = useState('categories');
   const [loading, setLoading] = useState(true);
+  const [isCurriculumModalOpen, setIsCurriculumModalOpen] = useState(false);
+  const [curriculumCategory, setCurriculumCategory] = useState(null);
+  const [curriculumList, setCurriculumList] = useState([]);
   
   // Search & Filter
   const [search, setSearch] = useState('');
@@ -39,7 +42,7 @@ export default function CoursesAdminPage() {
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
-  const [currentCategory, setCurrentCategory] = useState({ name: '', image: '', description: '', priority: 'Medium', status: 'active' });
+  const [currentCategory, setCurrentCategory] = useState({ name: '', image: '', description: '', priority: 'Medium', status: 'active', type: 'Academics' });
   
   const [deleteConfirm, setDeleteConfirm] = useState(null); // id to delete
   
@@ -94,7 +97,7 @@ export default function CoursesAdminPage() {
     if (mode === 'edit' && category) {
       setCurrentCategory(category);
     } else {
-      setCurrentCategory({ name: '', image: '', description: '', priority: 'Medium', status: 'active' });
+      setCurrentCategory({ name: '', image: '', description: '', priority: 'Medium', status: 'active', type: 'Academics' });
     }
     setIsModalOpen(true);
   };
@@ -123,6 +126,38 @@ export default function CoursesAdminPage() {
       setDeleteConfirm(null);
     } catch (error) {
       showToast(error.response?.data?.message || 'Failed to delete category', 'error');
+    }
+  };
+
+  const handleOpenCurriculumModal = (cat) => {
+    setCurriculumCategory(cat);
+    setCurriculumList(
+      (cat.curriculum || []).map(c => ({
+        title: c.title || '',
+        description: c.description || '',
+        topicsText: Array.isArray(c.topics) ? c.topics.join(', ') : ''
+      }))
+    );
+    setIsCurriculumModalOpen(true);
+  };
+
+  const handleSaveCurriculum = async (e) => {
+    e.preventDefault();
+    try {
+      const updatedCurriculum = curriculumList.map(item => ({
+        title: item.title,
+        description: item.description,
+        topics: item.topicsText.split(',').map(t => t.trim()).filter(Boolean)
+      }));
+      await adminApi.updateCategory(curriculumCategory._id, {
+        ...curriculumCategory,
+        curriculum: updatedCurriculum
+      });
+      showToast('Curriculum updated successfully');
+      setIsCurriculumModalOpen(false);
+      fetchCategories();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Failed to save curriculum', 'error');
     }
   };
 
@@ -209,8 +244,9 @@ export default function CoursesAdminPage() {
                   
                   <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-auto">
                     <div className="flex gap-2">
-                      <button onClick={() => handleOpenModal('edit', cat)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition"><Edit2 size={14} /></button>
-                      <button onClick={() => setDeleteConfirm(cat._id)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition"><Trash2 size={14} /></button>
+                      <button type="button" onClick={() => handleOpenModal('edit', cat)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition" title="Edit Category"><Edit2 size={14} /></button>
+                      <button type="button" onClick={() => handleOpenCurriculumModal(cat)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 transition" title="Manage Curriculum"><BookOpen size={14} /></button>
+                      <button type="button" onClick={() => setDeleteConfirm(cat._id)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition" title="Delete Category"><Trash2 size={14} /></button>
                     </div>
                     <span className={`text-xs font-semibold px-2 py-1 rounded-md ${cat.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
                       {cat.status === 'active' ? 'Active' : 'Inactive'}
@@ -280,6 +316,18 @@ export default function CoursesAdminPage() {
                 <textarea value={currentCategory.description} onChange={e => setCurrentCategory({...currentCategory, description: e.target.value})} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-[#056852] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#056852]/20 transition min-h-[80px]" placeholder="Brief description of this category..."></textarea>
               </div>
               
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Category Group / Type *</label>
+                <select value={currentCategory.type || 'Academics'} onChange={e => setCurrentCategory({...currentCategory, type: e.target.value})} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-[#056852] focus:bg-white focus:outline-none transition appearance-none">
+                  <option value="Academics">Academics</option>
+                  <option value="Competitive Exams">Competitive Exams</option>
+                  <option value="Arts & Music">Arts & Music</option>
+                  <option value="Fitness & Sports">Fitness & Sports</option>
+                  <option value="Skills & Tech">Skills & Tech</option>
+                  <option value="Languages">Languages</option>
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Priority</label>
@@ -320,6 +368,110 @@ export default function CoursesAdminPage() {
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200 transition">Cancel</button>
               <button onClick={handleDeleteCategory} className="flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700 transition shadow-md shadow-rose-200">Delete</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Curriculum Modal */}
+      {isCurriculumModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Manage Curriculum</h2>
+                <p className="text-xs text-[#056852] font-semibold">{curriculumCategory?.name}</p>
+              </div>
+              <button onClick={() => setIsCurriculumModalOpen(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 transition"><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleSaveCurriculum} className="flex-1 flex flex-col overflow-hidden">
+              <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                {curriculumList.length === 0 ? (
+                  <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
+                    <BookOpen className="mx-auto h-10 w-10 text-slate-300 mb-2" />
+                    <p className="text-sm font-semibold text-slate-600">No curriculum sections defined</p>
+                    <p className="text-xs text-slate-400 mt-1">Add sections like Foundation, Board Prep, JEE prep etc.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {curriculumList.map((item, index) => (
+                      <div key={index} className="p-5 border border-slate-100 bg-slate-50/50 rounded-2xl space-y-4 relative group">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#056852] bg-[#e6f7f2] px-2.5 py-1 rounded-md">Section #{index + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurriculumList(prev => prev.filter((_, idx) => idx !== index));
+                            }}
+                            className="text-slate-400 hover:text-rose-600 transition p-1"
+                            title="Delete Section"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">Section Title *</label>
+                            <input
+                              required
+                              type="text"
+                              value={item.title}
+                              onChange={(e) => {
+                                setCurriculumList(prev => prev.map((c, idx) => idx === index ? { ...c, title: e.target.value } : c));
+                              }}
+                              placeholder="e.g. Class 9-10 (Board Prep)"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm focus:border-[#056852] focus:outline-none focus:ring-2 focus:ring-[#056852]/20 transition"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">Description</label>
+                            <textarea
+                              value={item.description}
+                              onChange={(e) => {
+                                setCurriculumList(prev => prev.map((c, idx) => idx === index ? { ...c, description: e.target.value } : c));
+                              }}
+                              placeholder="e.g. Full CBSE/UP Board syllabus — polynomials, quadratics..."
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm focus:border-[#056852] focus:outline-none focus:ring-2 focus:ring-[#056852]/20 transition min-h-[60px]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">Topics Covered (comma separated) *</label>
+                            <input
+                              required
+                              type="text"
+                              value={item.topicsText}
+                              onChange={(e) => {
+                                setCurriculumList(prev => prev.map((c, idx) => idx === index ? { ...c, topicsText: e.target.value } : c));
+                              }}
+                              placeholder="e.g. Polynomials, Coordinate Geometry, Circles"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm focus:border-[#056852] focus:outline-none focus:ring-2 focus:ring-[#056852]/20 transition"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurriculumList(prev => [...prev, { title: '', description: '', topicsText: '' }]);
+                  }}
+                  className="w-full py-3 border-2 border-dashed border-slate-200 hover:border-[#056852]/40 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-slate-600 hover:text-[#056852] hover:bg-slate-50 transition"
+                >
+                  <Plus size={16} /> Add Curriculum Section
+                </button>
+              </div>
+
+              <div className="border-t border-slate-100 p-6 flex gap-3 shrink-0">
+                <button type="button" onClick={() => setIsCurriculumModalOpen(false)} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200 transition">Cancel</button>
+                <button type="submit" className="flex-1 rounded-xl bg-[#056852] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#045241] transition shadow-md shadow-emerald-100">Save Curriculum</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

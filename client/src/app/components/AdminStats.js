@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { fetchApi } from '../lib/api';
 
 export default function AdminStats() {
   const [metrics, setMetrics] = useState([
@@ -11,15 +12,16 @@ export default function AdminStats() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/users`).then((response) => response.json()),
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/bookings`).then((response) => response.json()),
+      fetchApi('/api/v1/users'),
+      fetchApi('/api/v1/admin/bookings'),
     ]).then(([users, bookings]) => {
       setMetrics([
-        { label: 'New signups', value: `${users.length}` },
-        { label: 'Demo requests', value: `${bookings.length}` },
+        { label: 'New signups', value: `${(users || []).length}` },
+        { label: 'Demo requests', value: `${(bookings || []).length}` },
         { label: 'Revenue this month', value: '₹3.2L' },
       ]);
-    }).catch(() => {
+    }).catch((err) => {
+      console.error('Error fetching admin stats:', err);
       setMetrics([
         { label: 'New signups', value: '0' },
         { label: 'Demo requests', value: '0' },

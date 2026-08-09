@@ -134,7 +134,7 @@ export default function AdminDashboardPage() {
   // Real-time polling
   const { data: stats, loading: statsLoading, reload: reloadStats } = usePoll('/api/v1/admin/stats', 30000, null);
   const { data: analytics } = usePoll('/api/v1/admin/analytics', 60000, null);
-  const { data: bookingsData, reload: reloadBookings } = usePoll('/api/v1/bookings', 20000, []);
+  const { data: bookingsData, reload: reloadBookings } = usePoll('/api/v1/admin/bookings', 20000, []);
   const { data: usersData } = usePoll('/api/v1/admin/users', 30000, []);
   const { data: activityData } = usePoll('/api/v1/admin/recent-activity', 20000, []);
   const { data: notifs } = usePoll('/api/v1/notifications', 25000, []);
@@ -227,10 +227,10 @@ export default function AdminDashboardPage() {
   const categories = [
     { label: 'Programming', value: 28, color: '#056852' },
     { label: 'Language', value: 22, color: '#0ea5e9' },
-    { label: 'Academic', value: 18, color: '#8b5cf6' },
+    { label: 'Academic', value: 16, color: '#8b5cf6' },
     { label: 'Design', value: 14, color: '#f59e0b' },
     { label: 'Music', value: 10, color: '#f97316' },
-    { label: 'Others', value: 8, color: '#94a3b8' },
+    { label: 'Others', value: 10, color: '#94a3b8' },
   ];
 
   const recentRegistrations = [...users].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 6).map(u => ({
@@ -576,8 +576,8 @@ export default function AdminDashboardPage() {
                       <div className="flex gap-1.5">
                         <button
                           onClick={async () => {
-                            await fetchApi(`/api/v1/bookings/${b.id}`, {
-                              method: 'PATCH',
+                            await fetchApi(`/api/v1/admin/bookings/${b.id}`, {
+                              method: 'PUT',
                               body: JSON.stringify({ status: 'Confirmed' }),
                             });
                             reloadBookings();
@@ -586,8 +586,8 @@ export default function AdminDashboardPage() {
                         >Confirm</button>
                         <button
                           onClick={async () => {
-                            await fetchApi(`/api/v1/bookings/${b.id}`, {
-                              method: 'PATCH',
+                            await fetchApi(`/api/v1/admin/bookings/${b.id}`, {
+                              method: 'PUT',
                               body: JSON.stringify({ status: 'Declined' }),
                             });
                             reloadBookings();

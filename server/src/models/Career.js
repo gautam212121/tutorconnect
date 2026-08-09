@@ -72,6 +72,7 @@ const careerSchema = new mongoose.Schema({
     idUrl: { type: String }
   },
 
+  password: { type: String },
   status: { type: String, enum: ['pending', 'under review', 'approved', 'rejected'], default: 'pending' },
 }, { timestamps: true });
 

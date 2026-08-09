@@ -64,7 +64,6 @@ export default function DashboardLayout({ children }) {
   const roleNavs = {
     student: [
       { key: 'dashboard', name: 'Dashboard', href: '/dashboard/student', icon: LayoutDashboard, exact: true },
-      { key: 'find', name: 'Find Home Tutor', href: '/tutors', icon: Search },
       { key: 'my-tutor', name: 'My Tutor', href: '/dashboard/student?section=my-tutor', icon: User },
       { key: 'schedule', name: 'My Schedule', href: '/dashboard/student?section=schedule', icon: Calendar },
       { key: 'subjects', name: 'My Subjects', href: '/dashboard/student?section=subjects', icon: BookOpen },
@@ -92,10 +91,6 @@ export default function DashboardLayout({ children }) {
       { key: 'notifications', name: 'Notifications', href: '/dashboard/tutor/notifications', icon: Bell, badge: 3 },
       { key: 'profile', name: 'Profile', href: '/dashboard/tutor/profile', icon: User },
       { key: 'settings', name: 'Settings', href: '/dashboard/tutor/settings', icon: Settings },
-    ],
-    institute: [
-      { key: 'dashboard', name: 'Overview', href: '/dashboard/institute', icon: LayoutDashboard, exact: true },
-      { key: 'faculty', name: 'Find Faculty', href: '/tutors', icon: UserCheck },
     ],
   };
 
@@ -179,18 +174,7 @@ export default function DashboardLayout({ children }) {
 
         {/* Bottom: CTA for student + logout */}
         <div className="shrink-0 border-t border-slate-100 px-4 pb-4 pt-3 space-y-2">
-          {role === 'student' && (
-            <div className="rounded-2xl bg-gradient-to-br from-[#056852] to-teal-500 p-4 mb-1 shadow-lg shadow-[#056852]/20">
-              <p className="text-[11px] font-bold text-white leading-snug">Need a tutor for a new subject?</p>
-              <p className="mt-0.5 text-[10px] text-teal-100">Find the perfect match for your goals.</p>
-              <Link
-                href="/tutors"
-                className="mt-2.5 flex items-center justify-center gap-1 rounded-xl bg-white py-1.5 text-[11px] font-bold text-[#056852] hover:bg-teal-50 transition"
-              >
-                Find Tutor Now <ArrowRight size={11} />
-              </Link>
-            </div>
-          )}
+
           <div className="flex items-center gap-1">
             <Link
               href="/"

@@ -15,7 +15,12 @@ export default function AdminCareersPage() {
   const [selectedApp, setSelectedApp] = useState(null);
 
   useEffect(() => {
-    fetch(`${API}/api/v1/admin/careers`)
+    const token = localStorage.getItem('tutorconnect-token');
+    fetch(`${API}/api/v1/admin/careers`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
       .then(res => res.json())
       .then(data => {
         setApplications(Array.isArray(data) ? data : []);
@@ -29,9 +34,13 @@ export default function AdminCareersPage() {
 
   const handleStatusChange = async (id, status) => {
     try {
+      const token = localStorage.getItem('tutorconnect-token');
       const res = await fetch(`${API}/api/v1/admin/careers/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ status })
       });
       if (res.ok) {

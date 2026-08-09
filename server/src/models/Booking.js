@@ -1,12 +1,41 @@
 import mongoose from 'mongoose';
 
 const bookingSchema = new mongoose.Schema({
-  student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  tutor:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  requestType: {
+    type: String,
+    enum: ['booking', 'consultation', 'registration'],
+    default: 'booking',
+  },
+  source: { type: String, default: 'website' },
+
+  student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+  tutor:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
   course:  { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
 
+  studentSnapshot: {
+    name: { type: String },
+    phone: { type: String },
+    email: { type: String },
+    role: { type: String },
+    classLevel: { type: String },
+    grade: { type: String },
+    subject: { type: String },
+    location: { type: String },
+    mode: { type: String },
+    address: { type: String },
+  },
+
+  tutorSnapshot: {
+    name: { type: String },
+    email: { type: String },
+    phone: { type: String },
+    subject: { type: String },
+  },
+
   // Session details
-  subject:     { type: String, required: true },
+  subject:     { type: String, required: false },
+  grade:       { type: String },
+  examType:    { type: String },
   mode:        { type: String, enum: ['Home', 'Online'], default: 'Home' },
   scheduledAt: { type: Date },
   duration:    { type: Number, default: 60 }, // minutes
@@ -26,14 +55,16 @@ const bookingSchema = new mongoose.Schema({
   // Status
   status: {
     type: String,
-    enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled', 'Rejected'],
+    enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled', 'Rejected', 'Declined'],
     default: 'Pending'
   },
 
   // Payment
   amount:           { type: Number, default: 0 },
-  tutorEarning:     { type: Number, default: 0 }, // 80%
-  adminCommission:  { type: Number, default: 0 }, // 20%
+  adminRate:        { type: Number, default: 0.2 },
+  tutorRate:        { type: Number, default: 0.8 },
+  tutorEarning:     { type: Number, default: 0 }, // computed based on amount
+  adminCommission:  { type: Number, default: 0 },
   paymentStatus:    { type: String, enum: ['Pending', 'Paid', 'Refunded', 'Failed'], default: 'Pending' },
   razorpayOrderId:  { type: String },
   razorpayPaymentId:{ type: String },

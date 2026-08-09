@@ -83,7 +83,7 @@ export default function LoginPage() {
 
           <p className="mt-4 text-center text-xs text-slate-500">
             Don't have an account yet?{' '}
-            <a href="/register" className="font-bold text-[#056852] hover:underline">Create an account</a>
+            <Link href="/?register=true" className="font-bold text-[#056852] hover:underline">Create an account</Link>
           </p>
         </div>
       </div>

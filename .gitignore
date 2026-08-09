@@ -1,0 +1,22 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+pnpm-lock.yaml
+.env
+.env.*
+.DS_Store
+/dist
+/build
+/.cache
+**/coverage/
+**/logs/
+
+# VS Code
+.vscode/
+
+# Local data
+server/data/
+client/.next/

@@ -8,6 +8,7 @@ import { OTP } from '../models/OTP.js';
 
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const getJwtSecret = () => process.env.JWT_SECRET || 'tutorconnect-dev-secret';
 
 // ── Email transporter ──────────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
@@ -102,7 +103,7 @@ router.post('/google', async (req, res) => {
 
     const token = jwt.sign(
       { sub: user._id, role: user.role, email: user.email, name: user.name },
-      process.env.JWT_SECRET || 'demo-secret',
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 
