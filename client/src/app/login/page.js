@@ -13,13 +13,8 @@ export default function LoginPage() {
 
       {/* Header Bar */}
       <div className="mx-auto w-full max-w-5xl flex items-center justify-between z-10">
-        <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e6f7f2] text-[#056852] border border-[#b2e8d8] transition group-hover:scale-105">
-            <BookOpen size={22} strokeWidth={2.2} />
-          </div>
-          <span className="font-extrabold text-slate-900">
-            Tutor<span className="text-[#056852]">Connect</span>
-          </span>
+        <Link href="/" className="flex items-center gap-2 group">
+          <img src="/verified-tutor-logo.png" alt="Verified Tutor" className="h-10 w-auto object-contain transition group-hover:scale-105" />
         </Link>
 
         <Link

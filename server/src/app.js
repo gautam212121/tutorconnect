@@ -103,6 +103,93 @@ const createApp = () => {
     });
   });
 
+  // ── Newsletter (Public) ──
+  app.post('/api/v1/newsletter/subscribe', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: 'Email is required' });
+      
+      const { Newsletter } = await import('./models/Newsletter.js');
+      const existing = await Newsletter.findOne({ email: email.trim().toLowerCase() });
+      if (existing) {
+        return res.status(400).json({ message: 'This email is already subscribed' });
+      }
+      
+      const sub = new Newsletter({ email: email.trim().toLowerCase() });
+      await sub.save();
+      res.status(201).json({ message: 'Subscribed successfully' });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Newsletter (Admin) ──
+  app.get('/api/v1/admin/newsletter', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+      const { Newsletter } = await import('./models/Newsletter.js');
+      const subs = await Newsletter.find().sort({ subscribedAt: -1 });
+      res.json(subs);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Blogs (Public) ──
+  app.get('/api/v1/blogs', async (_req, res) => {
+    try {
+      const { Blog } = await import('./models/Blog.js');
+      const blogs = await Blog.find().sort({ createdAt: -1 });
+      res.json(blogs);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get('/api/v1/blogs/:id', async (req, res) => {
+    try {
+      const { Blog } = await import('./models/Blog.js');
+      const blog = await Blog.findById(req.params.id);
+      if (!blog) return res.status(404).json({ message: 'Blog not found' });
+      res.json(blog);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Blogs (Admin) ──
+  app.post('/api/v1/admin/blogs', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+      const { Blog } = await import('./models/Blog.js');
+      const blog = new Blog(req.body);
+      await blog.save();
+      res.status(201).json(blog);
+    } catch (err) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.put('/api/v1/admin/blogs/:id', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+      const { Blog } = await import('./models/Blog.js');
+      const blog = await Blog.findByIdAndUpdate(req.params.id, req.body, { new: true });
+      if (!blog) return res.status(404).json({ message: 'Blog not found' });
+      res.json(blog);
+    } catch (err) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete('/api/v1/admin/blogs/:id', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+      const { Blog } = await import('./models/Blog.js');
+      const blog = await Blog.findByIdAndDelete(req.params.id);
+      if (!blog) return res.status(404).json({ message: 'Blog not found' });
+      res.json({ message: 'Blog deleted successfully' });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // ── Users (Admin) ──────────────────────────────────────────────────────────
   app.get('/api/v1/users', verifyToken, requireRole('admin'), async (_req, res) => {
     try {

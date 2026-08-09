@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Navbar from './components/Navbar';
+import AnimatedCounter from './components/AnimatedCounter';
 import BookingModal from './components/BookingModal';
 import RegisterModal from './components/RegisterModal';
 import { useSocket } from '../hooks/useSocket';
@@ -10,7 +11,7 @@ import {
   Search, ShieldCheck, UserCheck, ArrowRight, MapPin, BookOpen,
   GraduationCap, Star, CheckCircle, Clock, Users, Award, ChevronDown,
   ChevronRight, Phone, Mail, Instagram, Facebook, Youtube, Linkedin,
-  RefreshCw, BadgeCheck, Headphones, DollarSign, Calendar,
+  RefreshCw, BadgeCheck, Headphones, DollarSign, Calendar, X,
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -44,6 +45,8 @@ export default function HomePage() {
     heroSubtitle: 'Verified tutors at your doorstep',
     heroImage: '/hero-banner.jpg'
   });
+  const [showTutorCta, setShowTutorCta] = useState(true);
+  const [showStudentCta, setShowStudentCta] = useState(true);
   const featuredTutorsMobileRef = useRef(null);
 
   // Callback Form State
@@ -89,6 +92,37 @@ export default function HomePage() {
       setCallbackError(err.message);
     } finally {
       setSubmittingCallback(false);
+    }
+  };
+
+  // Newsletter State & Handler
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterStatus, setNewsletterStatus] = useState(''); // 'loading', 'success', 'error'
+  const [newsletterMessage, setNewsletterMessage] = useState('');
+
+  const handleNewsletterSubscribe = async (e) => {
+    e.preventDefault();
+    if (!newsletterEmail) return;
+    setNewsletterStatus('loading');
+    setNewsletterMessage('');
+    try {
+      const response = await fetch(`${API}/api/v1/newsletter/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newsletterEmail })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setNewsletterStatus('success');
+        setNewsletterEmail('');
+        setNewsletterMessage('Thank you for subscribing!');
+      } else {
+        setNewsletterStatus('error');
+        setNewsletterMessage(data.message || 'Subscription failed');
+      }
+    } catch {
+      setNewsletterStatus('error');
+      setNewsletterMessage('Server connection error. Please try again.');
     }
   };
 
@@ -163,16 +197,16 @@ export default function HomePage() {
 
       {/* ═══════════════════════ HERO SECTION ═══════════════════════ */}
       <section className="relative bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pb-0">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             {/* Left content */}
             <div>
-              <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold text-slate-900 leading-[1.1] tracking-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-[42px] font-extrabold text-slate-900 leading-[1.1] tracking-tight">
                 Find the Right Tutor.{' '}
                 <span className="text-emerald-600">Learn Better.</span>{' '}
                 <span className="text-emerald-600">Achieve More.</span>
               </h1>
-              <p className="mt-5 text-lg text-slate-500 max-w-lg leading-relaxed">
+              <p className="mt-5 text-sm text-slate-500 max-w-lg leading-relaxed">
                 Personalized home tuitions for Class 1 to 12, JEE, NEET and all major subjects.
                 Verified tutors. Real results.
               </p>
@@ -279,8 +313,8 @@ export default function HomePage() {
             </div>
 
             {/* Right — Tutor CTA Card (floating) */}
-            <div className="relative hidden lg:block">
-              <div className="w-full h-[420px] rounded-3xl overflow-hidden relative shadow-lg">
+            <div className="relative w-full mt-8 lg:mt-0">
+              <div className="w-full h-[320px] sm:h-[460px] lg:h-[420px] rounded-3xl overflow-hidden relative shadow-lg">
                 <img
                   src={heroSettings.heroImage || '/hero-banner.jpg'}
                   alt="Quality Home Tuition"
@@ -297,16 +331,48 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Floating CTA */}
-              <div className="absolute top-8 right-0 bg-white rounded-2xl shadow-xl p-5 w-64 border border-slate-100">
-                <p className="font-bold text-slate-800 text-sm">Are you a Tutor?</p>
-                <p className="text-xs text-slate-400 mt-1">Join TutorConnect and start getting free leads.</p>
-                <Link
-                  href="/careers"
-                  className="mt-3 flex items-center justify-center gap-1 py-2 border-2 border-slate-800 rounded-xl text-xs font-bold text-slate-800 hover:bg-slate-800 hover:text-white transition"
-                >
-                  Join as Tutor
-                </Link>
+              {/* Floating CTAs Container */}
+              <div className="absolute top-4 sm:top-8 right-2 sm:right-4 flex flex-col gap-3 z-20">
+                {showTutorCta && (
+                  <div className="bg-white rounded-2xl shadow-xl p-5 w-56 sm:w-64 border border-slate-100 relative">
+                    <button 
+                      onClick={() => setShowTutorCta(false)}
+                      className="absolute top-2.5 right-2.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    >
+                      <X size={14} />
+                    </button>
+                    <p className="font-bold text-slate-800 text-xs sm:text-sm">Are you a Tutor?</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 mt-1">Join Verified Tutor and start getting free leads.</p>
+                    <Link
+                      href="/careers"
+                      className="mt-3 flex items-center justify-center gap-1 py-2 border border-slate-800 rounded-xl text-[10px] sm:text-xs font-bold text-slate-800 hover:bg-slate-800 hover:text-white transition"
+                    >
+                      Join as Tutor
+                    </Link>
+                  </div>
+                )}
+
+                {showStudentCta && (
+                  <div className="bg-white rounded-2xl shadow-xl p-5 w-56 sm:w-64 border border-slate-100 relative">
+                    <button 
+                      onClick={() => setShowStudentCta(false)}
+                      className="absolute top-2.5 right-2.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    >
+                      <X size={14} />
+                    </button>
+                    <p className="font-bold text-slate-800 text-xs sm:text-sm">Looking for a Tutor?</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 mt-1">Find the best verified home tutors near you.</p>
+                    <button
+                      onClick={() => {
+                        setRegisterRole('student');
+                        setIsRegisterOpen(true);
+                      }}
+                      className="mt-3 flex w-full items-center justify-center gap-1 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-[10px] sm:text-xs font-bold text-white transition"
+                    >
+                      Find Tutor
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -316,9 +382,9 @@ export default function HomePage() {
       {/* ═══════════════════════ POPULAR SUBJECTS ═══════════════════════ */}
       <section className="py-5 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-slate-900">Popular Subjects</h2>
+          <h2 className="text-2xl mb-5 sm:text-3xl font-extrabold text-center text-slate-900">Popular Subjects</h2>
 
-          <div className="mt-10 grid grid-cols-3 gap-2 sm:hidden">
+          <div className="grid grid-cols-3 gap-2 sm:hidden">
             {(subjects.length > 0 ? subjects : [
               { name: 'Maths' }, { name: 'Physics' }, { name: 'Chemistry' }, { name: 'Biology' },
               { name: 'English' }, { name: 'Accountancy' }, { name: 'JEE' }, { name: 'NEET' },
@@ -339,7 +405,7 @@ export default function HomePage() {
             ))}
           </div>
 
-          <div className="mt-10 hidden gap-4 sm:grid sm:grid-cols-4 lg:grid-cols-8">
+          <div className="mt-0 hidden gap-4 sm:grid sm:grid-cols-4 lg:grid-cols-8">
             {(subjects.length > 0 ? subjects : [
               { name: 'Maths' }, { name: 'Physics' }, { name: 'Chemistry' }, { name: 'Biology' },
               { name: 'English' }, { name: 'Accountancy' }, { name: 'JEE' }, { name: 'NEET' },
@@ -360,7 +426,7 @@ export default function HomePage() {
             ))}
           </div>
 
-          <div className="mt-6 text-center">
+          <div className="mt-2 text-center">
             <Link href="/subjects" className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition">
               View All Subjects <ArrowRight size={14} />
             </Link>
@@ -369,11 +435,11 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════════════ HOW IT WORKS ═══════════════════════ */}
-      <section className="py-16 bg-slate-50">
+      <section className="py-5 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-slate-900">How TutorConnect Works</h2>
 
-          <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
+          <div className="mt-0 grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
             {[
               { step: '1', icon: <BookOpen size={28} />, title: 'Tell Us What You Need', desc: 'Choose subject, class, location and your learning goal.' },
               { step: '2', icon: <Users size={28} />, title: 'Get Matched', desc: 'We connect you with the best verified tutors near you.' },
@@ -395,12 +461,12 @@ export default function HomePage() {
           </div>
 
           {/* Stats boxes */}
-          <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="mt-0 grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { value: `${(stats.totalTutors || 10000).toLocaleString()}+`, label: 'Verified Tutors', icon: <GraduationCap size={20} className="text-emerald-600" /> },
-              { value: `${(stats.activeStudents || 50000).toLocaleString()}+`, label: 'Students Helped', icon: <Users size={20} className="text-blue-500" /> },
-              { value: '100+', label: 'Subjects Covered', icon: <BookOpen size={20} className="text-purple-500" /> },
-              { value: '4.8', label: 'Average Rating', icon: <Star size={20} className="text-amber-500" />, isStar: true },
+              { target: stats.totalTutors || 10000, suffix: '+', label: 'Verified Tutors', icon: <GraduationCap size={20} className="text-emerald-600" /> },
+              { target: stats.activeStudents || 50000, suffix: '+', label: 'Students Helped', icon: <Users size={20} className="text-blue-500" /> },
+              { target: 100, suffix: '+', label: 'Subjects Covered', icon: <BookOpen size={20} className="text-purple-500" /> },
+              { target: 4.8, suffix: '', label: 'Average Rating', icon: <Star size={20} className="text-amber-500" />, isStar: true },
             ].map((stat, i) => (
               <div key={i} className="flex items-center gap-3 bg-white rounded-2xl p-4 border border-slate-100">
                 <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50">
@@ -408,7 +474,8 @@ export default function HomePage() {
                 </div>
                 <div>
                   <p className="text-xl font-extrabold text-slate-900">
-                    {stat.value}{stat.isStar && <Star size={14} className="inline text-amber-400 fill-amber-400 ml-0.5 -mt-0.5" />}
+                    <AnimatedCounter target={stat.target} suffix={stat.suffix} />
+                    {stat.isStar && <Star size={14} className="inline text-amber-400 fill-amber-400 ml-0.5 -mt-0.5" />}
                   </p>
                   <p className="text-xs text-slate-400">{stat.label}</p>
                 </div>
@@ -419,7 +486,7 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════════════ WHY CHOOSE US ═══════════════════════ */}
-      <section className="py-16 bg-white">
+      <section className="py-5 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
@@ -430,9 +497,9 @@ export default function HomePage() {
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-3 p-5 rounded-2xl bg-slate-50 border border-slate-100">
                 <div className={`w-10 h-10 flex items-center justify-center rounded-xl shrink-0 ${item.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' :
-                    item.color === 'blue' ? 'bg-blue-100 text-blue-600' :
-                      item.color === 'purple' ? 'bg-purple-100 text-purple-600' :
-                        'bg-amber-100 text-amber-600'
+                  item.color === 'blue' ? 'bg-blue-100 text-blue-600' :
+                    item.color === 'purple' ? 'bg-purple-100 text-purple-600' :
+                      'bg-amber-100 text-amber-600'
                   }`}>
                   {item.icon}
                 </div>
@@ -448,14 +515,14 @@ export default function HomePage() {
 
       {/* ═══════════════════════ FEATURED TUTORS ═══════════════════════ */}
       {tutors.length > 0 && (
-        <section className="py-16 bg-slate-50">
+        <section className="py-5 bg-slate-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-slate-900">Featured Tutors</h2>
             <p className="text-center text-slate-400 mt-2">Top-rated, verified tutors ready to help you succeed</p>
 
             <div
               ref={featuredTutorsMobileRef}
-              className="mt-10 flex gap-4 overflow-x-auto pb-3 sm:hidden"
+              className=" flex gap-4 overflow-x-auto pb-3 sm:hidden"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {tutors.map((tutor, i) => (
@@ -508,7 +575,7 @@ export default function HomePage() {
               ))}
             </div>
 
-            <div className="mt-10 hidden gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-0 hidden gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-3">
               {tutors.map((tutor, i) => (
                 <div key={tutor.id || i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 group">
                   <div className="p-5">
@@ -561,7 +628,7 @@ export default function HomePage() {
       )}
 
       {/* ═══════════════════════ CALLBACK / CONSULTATION FORM ═══════════════════════ */}
-      <section className="py-16 bg-[#056852]/5 border-y border-emerald-100/60">
+      <section className="py-5 bg-[#056852]/5 border-y border-emerald-100/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-12 gap-10 items-center">
             {/* Left Column */}
@@ -748,15 +815,17 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
             {[
-              { icon: <GraduationCap size={24} className="text-emerald-600" />, value: '10,000+', label: 'Verified Tutors' },
-              { icon: <Users size={24} className="text-blue-500" />, value: '50,000+', label: 'Students Helped' },
-              { icon: <BookOpen size={24} className="text-purple-500" />, value: '100+', label: 'Subjects Covered' },
-              { icon: <Star size={24} className="text-amber-400" />, value: '4.8/5', label: 'Average Rating' },
+              { icon: <GraduationCap size={24} className="text-emerald-600" />, target: 10000, suffix: '+', label: 'Verified Tutors' },
+              { icon: <Users size={24} className="text-blue-500" />, target: 50000, suffix: '+', label: 'Students Helped' },
+              { icon: <BookOpen size={24} className="text-purple-500" />, target: 100, suffix: '+', label: 'Subjects Covered' },
+              { icon: <Star size={24} className="text-amber-400" />, target: 4.8, suffix: '/5', label: 'Average Rating' },
             ].map((s, i) => (
               <div key={i} className="flex items-center justify-center gap-3">
                 {s.icon}
                 <div className="text-left">
-                  <p className="text-xl font-extrabold text-emerald-700">{s.value}</p>
+                  <p className="text-xl font-extrabold text-emerald-700">
+                    <AnimatedCounter target={s.target} suffix={s.suffix} />
+                  </p>
                   <p className="text-xs text-slate-400">{s.label}</p>
                 </div>
               </div>
@@ -767,23 +836,26 @@ export default function HomePage() {
 
       {/* ═══════════════════════ FOOTER ═══════════════════════ */}
       <footer className="bg-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
             {/* Brand */}
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center">
-                  <GraduationCap size={16} className="text-white" />
-                </div>
-                <span className="text-lg font-extrabold">Tutor<span className="text-emerald-400">Connect</span></span>
+                <img src="/verified-tutor-logo.png" alt="Verified Tutor" className="h-8 w-auto object-contain" />
               </div>
               <p className="text-xs text-slate-400 leading-relaxed mb-4">
                 Connecting students with the right tutors for better learning and brighter futures.
               </p>
               <div className="space-y-2 text-xs text-slate-400 mb-4">
                 <p className="flex items-center gap-2"><MapPin size={12} /> Lucknow, Uttar Pradesh, India</p>
-                <p className="flex items-center gap-2"><Phone size={12} /> +91 123 456 7890</p>
-                <p className="flex items-center gap-2"><Mail size={12} /> support@tutorconnect.com</p>
+                <p className="flex items-center gap-2">
+                  <Phone size={12} /> 
+                  <a href="tel:+919044195981" className="hover:underline hover:text-white transition">+91 90441 95981</a>
+                </p>
+                <p className="flex items-center gap-2">
+                  <Mail size={12} /> 
+                  <a href="mailto:verifiedtutor.in@gmail.com" className="hover:underline hover:text-white transition">verifiedtutor.in@gmail.com</a>
+                </p>
               </div>
               <div className="flex gap-3">
                 {[Facebook, Instagram, Youtube, Linkedin].map((Icon, i) => (
@@ -798,13 +870,16 @@ export default function HomePage() {
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-4">For Students</h4>
               <ul className="space-y-2 text-xs text-slate-400">
-                {['Find a Tutor', 'How It Works', 'Subjects', 'Exams', 'Safety & Security'].map((item, i) => (
+                {[
+                  { label: 'Find a Tutor', href: '/?register=true' },
+                  { label: 'How It Works', href: '/how-it-works' },
+                  { label: 'Subjects', href: '/subjects' },
+                  { label: 'Exams', href: '/subjects' },
+                  { label: 'Safety & Security', href: '/why-us' },
+                ].map((item, i) => (
                   <li key={i}>
-                    <Link
-                      href={item === 'How It Works' ? '#how-it-works' : '/?register=true'}
-                      className="hover:text-white transition"
-                    >
-                      {item}
+                    <Link href={item.href} className="hover:text-white transition">
+                      {item.label}
                     </Link>
                   </li>
                 ))}
@@ -815,8 +890,17 @@ export default function HomePage() {
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-4">For Tutors</h4>
               <ul className="space-y-2 text-xs text-slate-400">
-                {['Become a Tutor', 'How Tutors Earn', 'Pricing & Commission', 'Help Center'].map((item, i) => (
-                  <li key={i}><Link href="/careers" className="hover:text-white transition">{item}</Link></li>
+                {[
+                  { label: 'Become a Tutor', href: '/careers' },
+                  { label: 'How Tutors Earn', href: '/how-it-works' },
+                  { label: 'Pricing & Commission', href: '/why-us' },
+                  { label: 'Help Center', href: '/about' },
+                ].map((item, i) => (
+                  <li key={i}>
+                    <Link href={item.href} className="hover:text-white transition">
+                      {item.label}
+                    </Link>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -826,8 +910,17 @@ export default function HomePage() {
               <div className="mb-8">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-4">Company</h4>
                 <ul className="space-y-2 text-xs text-slate-400">
-                  {['About Us', 'Blog', 'Terms & Conditions', 'Privacy Policy'].map((item, i) => (
-                    <li key={i}><Link href="/" className="hover:text-white transition">{item}</Link></li>
+                  {[
+                    { label: 'About Us', href: '/about' },
+                    { label: 'Blog', href: '/blog' },
+                    { label: 'Terms & Conditions', href: '/about' },
+                    { label: 'Privacy Policy', href: '/about' },
+                  ].map((item, i) => (
+                    <li key={i}>
+                      <Link href={item.href} className="hover:text-white transition">
+                        {item.label}
+                      </Link>
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -835,16 +928,28 @@ export default function HomePage() {
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-3">Newsletter</h4>
                 <p className="text-xs text-slate-400 mb-3">Subscribe to get tips, updates and learning strategies.</p>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <form onSubmit={handleNewsletterSubscribe} className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="email"
+                    required
                     placeholder="Email Address"
+                    value={newsletterEmail}
+                    onChange={(e) => setNewsletterEmail(e.target.value)}
                     className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
-                  <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs font-bold text-white transition whitespace-nowrap">
-                    Subscribe
+                  <button 
+                    type="submit"
+                    disabled={newsletterStatus === 'loading'}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 rounded-lg text-xs font-bold text-white transition whitespace-nowrap"
+                  >
+                    {newsletterStatus === 'loading' ? 'Subscribing...' : 'Subscribe'}
                   </button>
-                </div>
+                </form>
+                {newsletterMessage && (
+                  <p className={`mt-2 text-[11px] font-semibold ${newsletterStatus === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {newsletterMessage}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -853,7 +958,7 @@ export default function HomePage() {
         {/* Bottom bar */}
         <div className="border-t border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p className="text-xs text-slate-500">© {new Date().getFullYear()} TutorConnect. All Rights Reserved.</p>
+            <p className="text-xs text-slate-500">© {new Date().getFullYear()} Verified Tutor. All Rights Reserved.</p>
             <div className="flex items-center gap-4">
               <span className="text-xs text-slate-500">Payment Partners:</span>
               <div className="flex gap-2 items-center">

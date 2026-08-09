@@ -99,31 +99,31 @@ export default function Navbar({ onOpenHowItWorks }) {
     <nav className="sticky top-4 z-50 mx-auto max-w-7xl px-4 sm:px-6">
       <div className="flex items-center justify-between rounded-full border border-slate-200/80 bg-white/95 px-5 py-3 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] backdrop-blur-md transition-all">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e6f7f2] text-[#056852] border border-[#b2e8d8] transition group-hover:scale-105">
-            <BookOpen size={20} strokeWidth={2.2} />
-          </div>
-          <span className="font-extrabold text-slate-900">
-            Tutor<span className="text-[#056852]">Connect</span>
-          </span>
+        <Link href="/" className="flex items-center gap-2 group">
+          <img src="/verified-tutor-logo.png" alt="Verified Tutor" className="h-9 w-auto object-contain transition group-hover:scale-105" />
         </Link>
 
         {/* Center Navigation Links */}
         <div className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-          <button
-            onClick={() => onOpenHowItWorks && onOpenHowItWorks()}
-            className="py-1 text-slate-700 transition hover:text-[#056852] focus:outline-none"
-          >
+          <Link href="/about" className="py-1 text-slate-700 transition hover:text-[#056852]">
+            About
+          </Link>
+
+          <Link href="/blog" className="py-1 text-slate-700 transition hover:text-[#056852]">
+            Blog
+          </Link>
+
+          <Link href="/how-it-works" className="py-1 text-slate-700 transition hover:text-[#056852]">
             How it works
-          </button>
+          </Link>
 
           <Link href="/careers" className="py-1 text-slate-700 transition hover:text-[#056852]">
             Job Careers
           </Link>
 
-          <a href="#why-us" className="py-1 text-slate-700 transition hover:text-[#056852]">
+          <Link href="/why-us" className="py-1 text-slate-700 transition hover:text-[#056852]">
             Why us
-          </a>
+          </Link>
         </div>
 
         {/* Right Section (EN Selector & User State / Login Button) */}
@@ -246,9 +246,11 @@ export default function Navbar({ onOpenHowItWorks }) {
       {mobileMenuOpen && (
         <div className="absolute left-4 right-4 top-[72px] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xl md:hidden animate-in fade-in slide-in-from-top-2 duration-150">
           <div className="flex flex-col gap-4">
-            <button onClick={() => { onOpenHowItWorks && onOpenHowItWorks(); setMobileMenuOpen(false); }} className="text-left text-sm font-medium text-slate-700 hover:text-[#056852]">How it works</button>
+            <Link href="/about" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>About</Link>
+            <Link href="/blog" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>Blog</Link>
+            <Link href="/how-it-works" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>How it works</Link>
             <Link href="/careers" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>Job Careers</Link>
-            <a href="#why-us" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>Why us</a>
+            <Link href="/why-us" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>Why us</Link>
           </div>
         </div>
       )}

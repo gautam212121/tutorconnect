@@ -3,8 +3,8 @@
 import { Phone, MessageCircle } from 'lucide-react';
 
 export default function FloatingWidget() {
-  const whatsappUrl = `https://wa.me/918052559771?text=${encodeURIComponent("Hello! I am interested in booking a personal home/online tutor from TutorConnect. Please guide me.")}`;
-  const callUrl = "tel:8052559771";
+  const whatsappUrl = `https://wa.me/919044195981?text=${encodeURIComponent("Hello! I am interested in booking a personal home/online tutor from Verified Tutor. Please guide me.")}`;
+  const callUrl = "tel:9044195981";
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3.5 print:hidden">
@@ -40,7 +40,7 @@ export default function FloatingWidget() {
 
         {/* Tooltip */}
         <span className="absolute right-16 scale-0 rounded bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white shadow-md group-hover:scale-100 transition-all duration-200 whitespace-nowrap">
-          Call 8052559771
+          Call 90441 95981
         </span>
       </a>
     </div>

@@ -420,7 +420,7 @@ export default function SubjectPage() {
               <Loader2 className="h-8 w-8 animate-spin text-[#056852]" />
             </div>
           ) : tutors.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 max-w-md mx-auto px-6">
+            <div className="text-center py-12 pb-0 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 max-w-md mx-auto px-6">
               <GraduationCap className="h-10 w-10 text-slate-300 mx-auto mb-2" />
               <h3 className="text-base font-bold text-slate-700">No tutors found</h3>
               <p className="text-xs text-slate-400 mt-1">We are currently onboarding verified tutors for {category.name} in Lucknow. In the meantime, you can submit a callback request to get matched.</p>

@@ -151,7 +151,7 @@ export default function SubjectsDirectoryPage() {
       </section>
 
       {/* Main Subjects Directory List */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 space-y-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 space-y-12">
 
         {/* ═══════════════════════ MOST POPULAR SUBJECTS (Image 1) ═══════════════════════ */}
         {activeTab === 'All' && popularSubjects.length > 0 && (

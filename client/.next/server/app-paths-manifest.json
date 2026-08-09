@@ -1,6 +1,7 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
+  "/how-it-works/page": "app/how-it-works/page.js",
+  "/blog/page": "app/blog/page.js",
   "/page": "app/page.js",
-  "/dashboard/admin/careers/page": "app/dashboard/admin/careers/page.js",
-  "/dashboard/admin/page": "app/dashboard/admin/page.js"
+  "/about/page": "app/about/page.js",
+  "/why-us/page": "app/why-us/page.js"
 }

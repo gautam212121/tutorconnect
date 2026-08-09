@@ -165,6 +165,35 @@ server.listen(port, async () => {
         console.log('  ✅ Seeded subscription plans');
       }
 
+      // Seed default blogs
+      const { Blog } = await import('./src/models/Blog.js');
+      const blogCount = await Blog.countDocuments();
+      if (blogCount === 0) {
+        await Blog.insertMany([
+          {
+            title: 'How to Choose the Right Home Tutor for Your Child',
+            excerpt: 'Finding the perfect tutor goes beyond qualifications. Here are key things parents should evaluate before hiring.',
+            content: `Finding the perfect tutor for your child is a crucial decision that can significantly impact their academic journey and self-confidence. While academic qualifications are important, they are only part of the equation.\n\n### 1. Identify Your Goals\nBefore you start searching, clearly define what you want to achieve. Is your child struggling to keep up, or do they need help preparing for a specific competitive exam like JEE or NEET? Do they need help with homework, or are they looking for advanced enrichment?\n\n### 2. Look for Teaching Experience\nA tutor might be a subject expert, but explaining complex topics to a young student requires patience and pedagogical skills. Look for tutors who have experience teaching your child's specific class level or board (CBSE, ICSE, etc.).\n\n### 3. Check for Safety & Verifications\nSince a home tutor will be coming to your house, safety is paramount. Platforms like Verified Tutor screen educators by verifying their government IDs and academic credentials, giving parents peace of mind.\n\n### 4. Assess Communication Style and Attitude\nDuring the first demo class, observe how the tutor interacts with your child. A good tutor should be encouraging, patient, and capable of explaining concepts in multiple ways if the child doesn't understand the first time.`,
+            category: 'Parents Guide',
+            author: 'Sunita Sharma',
+            role: 'Parenting Consultant',
+            readTime: '4 min read',
+            image: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=800&auto=format&fit=crop&q=60'
+          },
+          {
+            title: '5 Effective Study Habits for Class 10 Board Exams',
+            excerpt: 'Prepare strategically for your boards. Learn how to manage time, structure study notes, and write optimal responses.',
+            content: `Board exams can be stressful, but with the right study strategies, you can ace them with physical colors. Here are 5 scientifically proven study habits that will help you prepare effectively:\n\n### 1. Use Active Recall\nInstead of just reading and re-reading your textbooks, test yourself. Close the book and write down everything you remember, or explain the concept to someone else. This builds stronger neural connections.\n\n### 2. Follow the Pomodoro Technique\nStudy in focused bursts of 25 minutes, followed by a 5-minute break. After four cycles, take a longer break of 15-30 minutes. This prevents cognitive fatigue and keeps your mind fresh.\n\n### 3. Solve Mock Papers Under Real Exam Conditions\nSuccess in board exams isn't just about what you know; it's also about managing your time. Practice solving previous years' papers in a quiet room with a 3-hour timer.\n\n### 4. Organize Your Study Workspace\nKeep your study desk clutter-free. Ensure you have proper lighting, comfortable seating, and keep all distractions (especially your phone!) in another room.\n\n### 5. Prioritize Sleep and Nutrition\nYour brain needs fuel and rest to function at its best. Get at least 7-8 hours of sleep before the exam, and eat light, nutritious meals.`,
+            category: 'Study Tips',
+            author: 'Rahul Verma',
+            role: 'Physics & Maths Tutor',
+            readTime: '6 min read',
+            image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&auto=format&fit=crop&q=60'
+          }
+        ]);
+        console.log('  ✅ Seeded default blogs');
+      }
+
     } catch (err) {
       console.error('❌ MongoDB connection error:', err.message);
     }

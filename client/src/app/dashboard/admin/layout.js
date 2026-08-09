@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   BookOpen, LayoutDashboard, Users, GraduationCap, BookOpen as CourseIcon,
   Calendar, CreditCard, Star, Bell, FileText, Settings,
-  ChevronDown, Menu, Search, LogOut, ExternalLink, X, Briefcase,
+  ChevronDown, Menu, Search, LogOut, ExternalLink, X, Briefcase, Mail,
 } from 'lucide-react';
 
 
@@ -19,6 +19,8 @@ const NAV = [
   { id: 'bookings',      label: 'Bookings',       href: '/dashboard/admin/bookings',     icon: Calendar },
   { id: 'payments',      label: 'Payments',       href: '/dashboard/admin/payments',     icon: CreditCard },
   { id: 'reviews',       label: 'Reviews',        href: '/dashboard/admin/reviews',      icon: Star },
+  { id: 'newsletter',    label: 'Newsletter',     href: '/dashboard/admin/newsletter',   icon: Mail },
+  { id: 'blogs',         label: 'Blogs',          href: '/dashboard/admin/blogs',        icon: FileText },
   { id: 'notifications', label: 'Notifications',  href: '/dashboard/admin/notifications',icon: Bell, badge: 12 },
   { id: 'reports',       label: 'Reports',        href: '/dashboard/admin/reports',      icon: FileText },
   { id: 'settings',      label: 'Settings',       href: '/dashboard/admin/settings',     icon: Settings },
