@@ -46,40 +46,6 @@ export default function LoginPage() {
 
           <AuthForm mode="login" />
 
-          {/* Demo Accounts */}
-          <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <p className="text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Demo Login</p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'Admin', email: 'admin@tutorconnect.com', pass: 'admin123', color: 'bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100' },
-                { label: 'Tutor', email: 'tutor@tutorconnect.com', pass: 'tutor123', color: 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' },
-                { label: 'Student', email: 'student@tutorconnect.com', pass: 'student123', color: 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100' },
-              ].map((acc) => (
-                <button
-                  key={acc.label}
-                  onClick={async () => {
-                    try {
-                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/auth/login`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: acc.email, password: acc.pass }),
-                      });
-                      const data = await res.json();
-                      if (data.token) {
-                        localStorage.setItem('tutorconnect-token', data.token);
-                        localStorage.setItem('tutorconnect-user', JSON.stringify(data.user));
-                        window.location.href = `/dashboard/${data.user.role}`;
-                      }
-                    } catch {}
-                  }}
-                  className={`flex flex-col items-center gap-0.5 rounded-xl border py-2.5 text-center transition ${acc.color}`}
-                >
-                  <span className="text-base">{acc.label === 'Admin' ? '🛡️' : acc.label === 'Tutor' ? '👨‍🏫' : '👨‍🎓'}</span>
-                  <span className="text-[10px] font-bold">{acc.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           <p className="mt-4 text-center text-xs text-slate-500">
             Don't have an account yet?{' '}
