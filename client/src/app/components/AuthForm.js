@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle2, ChevronRight, ChevronLeft, MapPin, Calendar, BookOpen, Loader2 } from 'lucide-react';
+import { auth, googleProvider } from '../firebase';
 
 export default function AuthForm({ mode = 'login' }) {
   const [step, setStep] = useState(1);
@@ -111,11 +113,8 @@ export default function AuthForm({ mode = 'login' }) {
     setError('');
     setSuccess('');
     try {
-      const { signInWithPopup } = await import('firebase/auth');
-      const { auth, googleProvider } = await import('../firebase');
-      
       const result = await signInWithPopup(auth, googleProvider);
-      const credential = googleProvider.constructor.credentialFromResult(result);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
       const idToken = credential?.idToken;
 
       if (!idToken) {
