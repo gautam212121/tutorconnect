@@ -8,7 +8,7 @@ export const useSocket = () => {
 
   useEffect(() => {
     if (!socketInstance) {
-      socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000');
+      socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://51.21.255.194:5000');
     }
     setSocket(socketInstance);
     

@@ -14,7 +14,7 @@ import {
   RefreshCw, BadgeCheck, Headphones, DollarSign, Calendar, X,
 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
 
 // Subject icons mapping
 const SUBJECT_ICONS = {

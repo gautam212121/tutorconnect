@@ -50,7 +50,7 @@ export default function RegisterModal({ isOpen, onClose, initialRole = 'student'
     setError('');
     setSuccess('');
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
 
     try {
       const response = await fetch(`${baseUrl}/api/v1/auth/student-register`, {

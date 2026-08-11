@@ -1,11 +1,6 @@
 import Booking from './models/Booking.js';
 import User from './models/User.js';
 
-export async function ensureMongoConnection() {
-  // Kept for backward compatibility if imported anywhere; returns false as Mongo is removed
-  return false;
-}
-
 export async function getBookings() {
   return Booking.find();
 }

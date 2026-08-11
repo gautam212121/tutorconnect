@@ -11,7 +11,7 @@ Follow these exact steps to set up and run TutorConnect with MySQL running throu
 - Click **Start** for **Apache** and **MySQL**.
 
 ### Step 2: Open phpMyAdmin
-- Navigate to `http://localhost/phpmyadmin` in your web browser.
+- Navigate to `http://51.21.255.194/phpmyadmin` in your web browser.
 
 ### Step 3: Import Database
 - Click on **Import** in phpMyAdmin top menu bar.
@@ -23,9 +23,9 @@ Follow these exact steps to set up and run TutorConnect with MySQL running throu
 - Verify or edit `.env`:
   ```env
   PORT=5000
-  CLIENT_URL=http://localhost:3000
+  CLIENT_URL=http://51.21.255.194:3000
   JWT_SECRET=tutorconnect-demo-secret
-  DB_HOST=localhost
+  DB_HOST=51.21.255.194
   DB_PORT=3306
   DB_USER=root
   DB_PASSWORD=

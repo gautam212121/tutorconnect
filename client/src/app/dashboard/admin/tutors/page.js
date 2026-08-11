@@ -6,7 +6,7 @@ import { adminApi } from '../../../../lib/api';
 import { useSocket } from '../../../../hooks/useSocket';
 import { getImageUrl } from '../../../../lib/image';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
 
 const MOCK_TUTORS = [];
 

@@ -36,7 +36,7 @@ export const upload = multer({
 });
 
 export const getUploadedImageUrl = (filename) => {
-  const baseUrl = process.env.PUBLIC_URL || 'http://localhost:5000';
+  const baseUrl = process.env.PUBLIC_URL || 'http://51.21.255.194:5000';
   return `${baseUrl.replace(/\/$/, '')}/uploads/${filename}`;
 };
 

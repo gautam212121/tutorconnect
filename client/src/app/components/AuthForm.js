@@ -83,7 +83,7 @@ export default function AuthForm({ mode = 'login' }) {
     setError('');
     setSuccess('');
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
 
     try {
       const response = await fetch(`${baseUrl}/api/v1/auth/send-login-otp`, {
@@ -114,7 +114,7 @@ export default function AuthForm({ mode = 'login' }) {
     setError('');
     setSuccess('');
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
 
     try {
       const response = await fetch(`${baseUrl}/api/v1/auth/login-otp`, {
@@ -151,7 +151,7 @@ export default function AuthForm({ mode = 'login' }) {
     setSuccess('');
 
     const endpoint = mode === 'register' ? '/api/v1/auth/register' : '/api/v1/auth/login';
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
 
     try {
       const payload = mode === 'register' ? form : { email: form.email, password: form.password };
@@ -192,7 +192,7 @@ export default function AuthForm({ mode = 'login' }) {
       const firebaseUser = result.user;
       const idToken = credential?.idToken || (await firebaseUser.getIdToken());
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
       const response = await fetch(`${baseUrl}/api/v1/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

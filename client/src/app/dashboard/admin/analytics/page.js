@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { BarChart2, TrendingUp, Users, Globe, ArrowUpRight } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
 
 function LineAreaChart({ data, color = '#056852', gradId, height = 100 }) {
   if (!data || data.length < 2) return null;

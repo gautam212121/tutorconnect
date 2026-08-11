@@ -421,7 +421,7 @@ export default function BookingsAdminPage() {
             <div className="space-y-2 text-xs">
               <div className="flex items-start gap-2 text-slate-700">
                 <CheckCircle2 size={14} className="text-emerald-600 mt-0.5 shrink-0" />
-                <span>Student Form submits to MongoDB database</span>
+                <span>Student Form submits to MySQL database</span>
               </div>
               <div className="flex items-start gap-2 text-slate-700">
                 <CheckCircle2 size={14} className="text-emerald-600 mt-0.5 shrink-0" />

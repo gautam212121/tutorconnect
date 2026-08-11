@@ -9,7 +9,7 @@ import {
   BarChart2, BadgeCheck, CircleDollarSign, ExternalLink, Phone,
 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
 
 // Simple Chart component
 function MiniLineChart({ data = [], height = 80 }) {

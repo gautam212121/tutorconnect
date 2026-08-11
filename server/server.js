@@ -7,11 +7,12 @@ import { query } from './src/config/db.js';
 import User from './src/models/User.js';
 
 const port = process.env.PORT || 5000;
+const host = process.env.HOST || '0.0.0.0';
 const app = createApp();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: process.env.CLIENT_URL || 'http://51.21.255.194:3000',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
   }
@@ -84,8 +85,10 @@ io.on('connection', (socket) => {
 });
 
 // ── Start Server ──────────────────────────────────────────────────────────────
-server.listen(port, async () => {
-  console.log(`\n🚀 TutorConnect server running on http://localhost:${port}\n`);
+server.listen(port, host, async () => {
+  const publicHost = process.env.PUBLIC_HOST || process.env.CLIENT_HOST || 'localhost';
+  const displayHost = publicHost === 'localhost' && host === '0.0.0.0' ? '0.0.0.0' : publicHost;
+  console.log(`\n🚀 TutorConnect server running on http://${displayHost}:${port}\n`);
 
   try {
     // Check MySQL database connection pool
