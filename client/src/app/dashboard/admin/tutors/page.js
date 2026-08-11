@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Search, Filter, CheckCircle2, XCircle, AlertTriangle, Eye, Trash2, Ban, Star, Shield, UserCheck, MoreVertical, ChevronDown, User, Upload } from 'lucide-react';
 import { adminApi } from '../../../../lib/api';
 import { useSocket } from '../../../../hooks/useSocket';
+import { getImageUrl } from '../../../../lib/image';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -37,7 +38,7 @@ export default function TutorsAdminPage() {
   const [newTutor, setNewTutor] = useState({
     name: '', email: '', password: '', mobile: '', location: '',
     headline: 'Tutor', experience: '1 year', subjects: '', price: 500,
-    mode: ['Online'], rating: 5, reviews: 0, avatar: ''
+    mode: ['Online'], rating: 5, reviews: 0, avatar: '', avatarFile: null
   });
 
   const socket = useSocket();
@@ -138,15 +139,27 @@ export default function TutorsAdminPage() {
   const handleAddTutor = async (e) => {
     e.preventDefault();
     try {
-      const payload = {
-        ...newTutor,
-        role: 'tutor',
-        status: 'verified',
-        verified: true,
-        subjects: newTutor.subjects ? newTutor.subjects.split(',').map(s => s.trim()).filter(Boolean) : ['General'],
-      };
+      const formData = new FormData();
+      formData.append('name', newTutor.name || '');
+      formData.append('email', newTutor.email || '');
+      formData.append('password', newTutor.password || '');
+      formData.append('mobile', newTutor.mobile || '');
+      formData.append('location', newTutor.location || '');
+      formData.append('headline', newTutor.headline || 'Tutor');
+      formData.append('experience', newTutor.experience || '1 year');
+      formData.append('role', 'tutor');
+      formData.append('status', 'verified');
+      formData.append('verified', 'true');
+      formData.append('subjects', JSON.stringify(newTutor.subjects ? newTutor.subjects.split(',').map(s => s.trim()).filter(Boolean) : ['General']));
+      formData.append('price', String(newTutor.price || 500));
+      formData.append('mode', JSON.stringify(newTutor.mode || ['Online']));
+      formData.append('rating', String(newTutor.rating || 5));
+      formData.append('reviews', String(newTutor.reviews || 0));
+      if (newTutor.avatarFile) {
+        formData.append('avatar', newTutor.avatarFile);
+      }
 
-      const addedUser = await adminApi.createUser(payload);
+      const addedUser = await adminApi.createUser(formData);
 
       if (addedUser) {
         const formattedUser = {
@@ -163,7 +176,7 @@ export default function TutorsAdminPage() {
         setNewTutor({
           name: '', email: '', password: '', mobile: '', location: '',
           headline: 'Tutor', experience: '1 year', subjects: '', price: 500,
-          mode: ['Online'], rating: 5, reviews: 0, avatar: ''
+          mode: ['Online'], rating: 5, reviews: 0, avatar: '', avatarFile: null
         });
       } else {
         alert('Failed to add tutor');
@@ -469,14 +482,19 @@ export default function TutorsAdminPage() {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Avatar Photo</label>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/webp"
                     onChange={(e) => {
                       const file = e.target.files[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => setNewTutor({ ...newTutor, avatar: reader.result });
-                        reader.readAsDataURL(file);
+                      if (!file) return;
+
+                      const validMime = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+                      if (!validMime.includes(file.type.toLowerCase())) {
+                        alert('Only JPG, PNG, or WEBP images are allowed');
+                        e.target.value = '';
+                        return;
                       }
+
+                      setNewTutor({ ...newTutor, avatar: URL.createObjectURL(file), avatarFile: file });
                     }}
                     className="w-full text-xs text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-[#056852]/10 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-[#056852] hover:file:bg-[#056852]/20 cursor-pointer outline-none"
                   />

@@ -20,7 +20,7 @@ export default function HowItWorksModal({ isOpen, onClose }) {
         </div>
 
         <h2 className="mt-3 text-2xl sm:text-3xl font-extrabold text-slate-900">
-          How <span className="text-[#056852]">TutorConnect</span> Works
+          How <span className="text-[#056852]">VerifiedTutors</span> Works
         </h2>
         <p className="mt-2 text-sm text-slate-500">
           Find verified tutors for home or online classes in 3 easy steps.

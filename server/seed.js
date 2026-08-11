@@ -1,13 +1,12 @@
 import 'dotenv/config';
-import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User } from './src/models/User.js';
+import { query } from './src/config/db.js';
 
 const seed = async () => {
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/tutorconnect';
   try {
-    await mongoose.connect(mongoUri, { dbName: process.env.MONGODB_DB_NAME || 'tutorconnect' });
-    console.log('Connected to MongoDB.');
+    await query('SELECT 1');
+    console.log('Connected to MySQL.');
 
     const seedUsers = [
       { name: 'Admin', email: 'admin@tutorconnect.com', role: 'admin', pass: 'admin123' },
@@ -17,8 +16,8 @@ const seed = async () => {
 
     for (const u of seedUsers) {
       const exists = await User.findOne({ email: u.email });
+      const hashedPassword = await bcrypt.hash(u.pass, 10);
       if (!exists) {
-        const hashedPassword = await bcrypt.hash(u.pass, 10);
         await User.create({
           name: u.name,
           email: u.email,
@@ -29,7 +28,11 @@ const seed = async () => {
         });
         console.log(`Created ${u.role}: ${u.email}`);
       } else {
-        console.log(`${u.role} already exists: ${u.email}`);
+        await User.findByIdAndUpdate(exists.id, {
+          password: hashedPassword,
+          status: 'active'
+        });
+        console.log(`Updated ${u.role} credentials: ${u.email}`);
       }
     }
     console.log('Seeding complete!');

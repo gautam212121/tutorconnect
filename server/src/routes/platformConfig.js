@@ -1,5 +1,5 @@
 import express from 'express';
-import { PlatformConfig } from '../models/PlatformConfig.js';
+import PlatformConfig from '../models/PlatformConfig.js';
 import { verifyToken, requireRole } from '../middleware/auth.js';
 import { getCommissionStructure } from '../services/commissionService.js';
 
@@ -46,33 +46,15 @@ router.get('/admin', verifyToken, requireRole('admin'), async (_req, res) => {
 // ── Admin: Update config ──────────────────────────────────────────────────────
 router.put('/admin', verifyToken, requireRole('admin'), async (req, res) => {
   try {
-    const config = await PlatformConfig.getConfig();
-    const updates = req.body;
-
-    // Update allowed fields
-    const allowedFields = [
-      'freeLeadsPerMonth', 'leadDisputeWindowHours', 'autoReplacementEnabled',
-      'otpVerificationForLeads', 'commissionTiers', 'payoutWindowDays',
-      'minimumWithdrawalAmount', 'platformName', 'supportEmail', 'supportPhone',
-      'platformAddress', 'gstRate', 'gstEnabled', 'maintenanceMode',
-      'maintenanceMessage', 'smtp',
-    ];
-
-    for (const field of allowedFields) {
-      if (updates[field] !== undefined) {
-        config[field] = updates[field];
-      }
-    }
-
-    await config.save();
+    const updated = await PlatformConfig.findOneAndUpdate({}, req.body);
 
     const io = getIo(req);
     io?.emit('config:updated', {
-      freeLeadsPerMonth: config.freeLeadsPerMonth,
-      commissionTiers: config.commissionTiers,
+      freeLeadsPerMonth: updated.freeLeadsPerMonth,
+      commissionTiers: updated.commissionTiers,
     });
 
-    res.json(config);
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -86,14 +68,12 @@ router.put('/admin/commission-tiers', verifyToken, requireRole('admin'), async (
       return res.status(400).json({ message: 'At least one commission tier is required' });
     }
 
-    const config = await PlatformConfig.getConfig();
-    config.commissionTiers = tiers;
-    await config.save();
+    const updated = await PlatformConfig.findOneAndUpdate({}, { commissionTiers: tiers });
 
     const io = getIo(req);
-    io?.emit('config:updated', { commissionTiers: config.commissionTiers });
+    io?.emit('config:updated', { commissionTiers: updated.commissionTiers });
 
-    res.json({ message: 'Commission tiers updated', tiers: config.commissionTiers });
+    res.json({ message: 'Commission tiers updated', tiers: updated.commissionTiers });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

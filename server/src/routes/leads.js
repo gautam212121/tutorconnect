@@ -1,11 +1,12 @@
 import express from 'express';
-import { Lead } from '../models/Lead.js';
-import { LeadDispute } from '../models/LeadDispute.js';
-import { User } from '../models/User.js';
-import { PlatformConfig } from '../models/PlatformConfig.js';
+import Lead from '../models/Lead.js';
+import LeadDispute from '../models/LeadDispute.js';
+import User from '../models/User.js';
+import PlatformConfig from '../models/PlatformConfig.js';
 import { verifyToken, requireAnyRole } from '../middleware/auth.js';
 import { createNotification, logActivity } from '../services/notificationService.js';
 import { checkFreeLeadsAvailable, creditLeadBack } from '../services/commissionService.js';
+import { execute } from '../config/db.js';
 
 const router = express.Router();
 const getIo = (req) => req.app.get('io');
@@ -13,7 +14,7 @@ const getIo = (req) => req.app.get('io');
 // ── Get leads for a tutor ─────────────────────────────────────────────────────
 router.get('/tutor/:tutorId', verifyToken, requireAnyRole(['tutor', 'admin']), async (req, res) => {
   try {
-    if (req.user.role === 'tutor' && req.user.id !== req.params.tutorId) {
+    if (req.user.role === 'tutor' && String(req.user.id) !== String(req.params.tutorId)) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -21,11 +22,10 @@ router.get('/tutor/:tutorId', verifyToken, requireAnyRole(['tutor', 'admin']), a
     const filter = { tutor: req.params.tutorId };
     if (status) filter.status = status;
 
-    const leads = await Lead.find(filter)
-      .populate('student', 'name email mobile avatar grade board address')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+    const leads = await Lead.find(filter);
+    for (const l of leads) {
+      l.student = await User.findById(l.student);
+    }
 
     const total = await Lead.countDocuments(filter);
 
@@ -39,13 +39,13 @@ router.get('/tutor/:tutorId', verifyToken, requireAnyRole(['tutor', 'admin']), a
 router.get('/tutor/:tutorId/stats', verifyToken, requireAnyRole(['tutor', 'admin']), async (req, res) => {
   try {
     const tutorId = req.params.tutorId;
-    if (req.user.role === 'tutor' && req.user.id !== tutorId) {
+    if (req.user.role === 'tutor' && String(req.user.id) !== String(tutorId)) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
     const [totalLeads, activeLeads, convertedLeads, disputedLeads] = await Promise.all([
       Lead.countDocuments({ tutor: tutorId }),
-      Lead.countDocuments({ tutor: tutorId, status: { $in: ['new', 'contacted', 'responded'] } }),
+      Lead.countDocuments({ tutor: tutorId, status: 'new' }),
       Lead.countDocuments({ tutor: tutorId, status: 'converted' }),
       Lead.countDocuments({ tutor: tutorId, status: 'disputed' }),
     ]);
@@ -73,11 +73,10 @@ router.post('/', verifyToken, requireAnyRole(['admin']), async (req, res) => {
       return res.status(400).json({ message: 'studentId, tutorId, subject, and classLevel are required' });
     }
 
-    // Check if tutor can receive lead
     const freeLeads = await checkFreeLeadsAvailable(tutorId);
     const isFreeSlot = freeLeads.canReceiveLead;
 
-    const lead = new Lead({
+    const lead = await Lead.create({
       student: studentId,
       tutor: tutorId,
       subject,
@@ -92,16 +91,15 @@ router.post('/', verifyToken, requireAnyRole(['admin']), async (req, res) => {
       deliveredAt: new Date(),
     });
 
-    await lead.save();
-
-    // Increment tutor's free leads used
     if (isFreeSlot) {
-      await User.findByIdAndUpdate(tutorId, { $inc: { freeLeadsUsed: 1 } });
+      const tutorObj = await User.findById(tutorId);
+      if (tutorObj) {
+        await User.findByIdAndUpdate(tutorId, { freeLeadsUsed: (tutorObj.freeLeadsUsed || 0) + 1 });
+      }
     }
 
-    await lead.populate('student', 'name email mobile avatar');
+    lead.student = await User.findById(studentId);
 
-    // Notify tutor
     const io = getIo(req);
     await createNotification(io, {
       recipientId: tutorId,
@@ -119,7 +117,7 @@ router.post('/', verifyToken, requireAnyRole(['admin']), async (req, res) => {
       action: 'Lead delivered',
       category: 'lead',
       details: `Lead ${lead.leadDisplayId} delivered to tutor`,
-      metadata: { leadId: lead._id, tutorId },
+      metadata: { leadId: lead.id, tutorId },
       req,
     });
 
@@ -136,7 +134,7 @@ router.patch('/:id/status', verifyToken, requireAnyRole(['tutor', 'admin']), asy
     const lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
 
-    if (req.user.role === 'tutor' && lead.tutor.toString() !== req.user.id) {
+    if (req.user.role === 'tutor' && String(lead.tutor) !== String(req.user.id)) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -150,17 +148,17 @@ router.patch('/:id/status', verifyToken, requireAnyRole(['tutor', 'admin']), asy
       return res.status(400).json({ message: `Cannot transition from ${lead.status} to ${status}` });
     }
 
-    lead.status = status;
-    if (status === 'contacted') lead.contactedAt = new Date();
-    if (status === 'responded') lead.respondedAt = new Date();
-    if (status === 'converted') lead.convertedAt = new Date();
+    const updates = { status };
+    if (status === 'contacted') updates.contactedAt = new Date();
+    if (status === 'responded') updates.respondedAt = new Date();
+    if (status === 'converted') updates.convertedAt = new Date();
 
-    await lead.save();
+    const updated = await Lead.findByIdAndUpdate(req.params.id, updates);
 
     const io = getIo(req);
-    io?.emit('lead:statusChange', { leadId: lead._id, status });
+    io?.emit('lead:statusChange', { leadId: updated.id, status });
 
-    res.json(lead);
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -172,11 +170,10 @@ router.post('/:id/dispute', verifyToken, requireAnyRole(['tutor']), async (req, 
     const { reason, description } = req.body;
     const lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
-    if (lead.tutor.toString() !== req.user.id) {
+    if (String(lead.tutor) !== String(req.user.id)) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    // Check 48-hour dispute window
     const config = await PlatformConfig.getConfig();
     const windowMs = config.leadDisputeWindowHours * 60 * 60 * 1000;
     const timeSinceDelivery = Date.now() - new Date(lead.deliveredAt).getTime();
@@ -187,44 +184,33 @@ router.post('/:id/dispute', verifyToken, requireAnyRole(['tutor']), async (req, 
       });
     }
 
-    // Create dispute
-    const dispute = new LeadDispute({
-      lead: lead._id,
+    const disputeData = {
+      lead: lead.id,
       tutor: req.user.id,
       reason,
       description,
-    });
+    };
 
-    // Auto-resolve if auto-replacement is enabled
     if (config.autoReplacementEnabled) {
-      dispute.status = 'auto-resolved';
-      dispute.autoResolved = true;
-      dispute.autoResolvedAt = new Date();
-      dispute.resolutionAction = 'credited';
+      disputeData.status = 'auto-resolved';
+      disputeData.autoResolved = true;
+      disputeData.autoResolvedAt = new Date();
+      disputeData.resolutionAction = 'credited';
 
-      // Credit back the lead
       await creditLeadBack(req.user.id);
-
-      lead.status = 'disputed';
-      lead.disputeReason = reason;
-      lead.disputedAt = new Date();
-      await lead.save();
+      await Lead.findByIdAndUpdate(lead.id, { status: 'disputed', disputeReason: reason, disputedAt: new Date() });
     } else {
-      dispute.status = 'pending-review';
-      lead.status = 'disputed';
-      lead.disputeReason = reason;
-      lead.disputedAt = new Date();
-      await lead.save();
+      disputeData.status = 'pending-review';
+      await Lead.findByIdAndUpdate(lead.id, { status: 'disputed', disputeReason: reason, disputedAt: new Date() });
     }
 
-    await dispute.save();
+    const dispute = await LeadDispute.create(disputeData);
 
     const io = getIo(req);
-    io?.emit('lead:disputed', { leadId: lead._id, disputeId: dispute._id });
+    io?.emit('lead:disputed', { leadId: lead.id, disputeId: dispute.id });
 
-    // Notify admin
     await createNotification(io, {
-      recipientId: null, // broadcast to admins
+      recipientId: null,
       title: 'Lead Disputed',
       message: `Tutor disputed lead ${lead.leadDisplayId}: ${reason}`,
       type: 'lead_dispute',
@@ -236,7 +222,7 @@ router.post('/:id/dispute', verifyToken, requireAnyRole(['tutor']), async (req, 
       action: 'Lead disputed',
       category: 'dispute',
       details: `Lead ${lead.leadDisplayId} disputed: ${reason}`,
-      metadata: { leadId: lead._id, disputeId: dispute._id },
+      metadata: { leadId: lead.id, disputeId: dispute.id },
       req,
     });
 
@@ -259,12 +245,11 @@ router.get('/', verifyToken, requireAnyRole(['admin']), async (req, res) => {
     const filter = {};
     if (status) filter.status = status;
 
-    const leads = await Lead.find(filter)
-      .populate('student', 'name email mobile')
-      .populate('tutor', 'name email')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+    const leads = await Lead.find(filter);
+    for (const l of leads) {
+      l.student = await User.findById(l.student);
+      l.tutor = await User.findById(l.tutor);
+    }
 
     const total = await Lead.countDocuments(filter);
 
@@ -281,21 +266,19 @@ router.get('/disputes', verifyToken, requireAnyRole(['admin']), async (req, res)
     const filter = {};
     if (status) filter.status = status;
 
-    const disputes = await LeadDispute.find(filter)
-      .populate('lead')
-      .populate('tutor', 'name email avatar')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+    const disputes = await LeadDispute.find(filter);
+    for (const d of disputes) {
+      d.lead = await Lead.findById(d.lead);
+      d.tutor = await User.findById(d.tutor);
+    }
 
     const total = await LeadDispute.countDocuments(filter);
 
-    // Get dispute stats
     const [autoResolved, pendingReview, escalated, resolved] = await Promise.all([
-      LeadDispute.countDocuments({ status: 'auto-resolved', createdAt: { $gte: new Date(new Date().setDate(1)) } }),
+      LeadDispute.countDocuments({ status: 'auto-resolved' }),
       LeadDispute.countDocuments({ status: 'pending-review' }),
       LeadDispute.countDocuments({ status: 'escalated' }),
-      LeadDispute.countDocuments({ status: 'resolved', createdAt: { $gte: new Date(new Date().setDate(1)) } }),
+      LeadDispute.countDocuments({ status: 'resolved' }),
     ]);
 
     res.json({
@@ -314,31 +297,31 @@ router.get('/disputes', verifyToken, requireAnyRole(['admin']), async (req, res)
 router.patch('/disputes/:id/resolve', verifyToken, requireAnyRole(['admin']), async (req, res) => {
   try {
     const { resolution, resolutionAction } = req.body;
-    const dispute = await LeadDispute.findById(req.params.id).populate('lead tutor');
+    const dispute = await LeadDispute.findById(req.params.id);
     if (!dispute) return res.status(404).json({ message: 'Dispute not found' });
 
-    dispute.status = 'resolved';
-    dispute.adminResolvedBy = req.user.id;
-    dispute.adminResolvedAt = new Date();
-    dispute.resolution = resolution;
-    dispute.resolutionAction = resolutionAction;
+    const updated = await LeadDispute.findByIdAndUpdate(req.params.id, {
+      status: 'resolved',
+      adminResolvedBy: req.user.id,
+      adminResolvedAt: new Date(),
+      resolution,
+      resolutionAction,
+    });
 
     if (resolutionAction === 'credited' || resolutionAction === 'replaced') {
-      await creditLeadBack(dispute.tutor._id);
+      await creditLeadBack(updated.tutor);
     }
-
-    await dispute.save();
 
     const io = getIo(req);
     await createNotification(io, {
-      recipientId: dispute.tutor._id,
+      recipientId: updated.tutor,
       title: 'Dispute Resolved',
       message: `Your lead dispute has been resolved: ${resolution}`,
       type: 'lead_dispute',
       icon: '✅',
     });
 
-    res.json(dispute);
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

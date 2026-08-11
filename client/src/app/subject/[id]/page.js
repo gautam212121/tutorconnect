@@ -146,7 +146,7 @@ export default function SubjectPage() {
   }
 
   // Fallback curriculum if none configured
-  const curriculumSections = category.curriculum && category.curriculum.length > 0
+  const curriculumSections = Array.isArray(category.curriculum) && category.curriculum.length > 0
     ? category.curriculum
     : [
       {
@@ -520,12 +520,12 @@ export default function SubjectPage() {
                 <div className="w-8 h-8 rounded-xl bg-[#056852] flex items-center justify-center">
                   <GraduationCap size={16} className="text-white" />
                 </div>
-                <span className="text-base font-extrabold text-white">Tutor<span className="text-emerald-400">Connect</span></span>
+                <span className="text-base font-extrabold text-white">Verified<span className="text-emerald-400">Tutors</span></span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Connecting students with the right tutors for better learning and brighter futures.
               </p>
-              <p className="text-[11px] text-slate-500">© {new Date().getFullYear()} TutorConnect. All Rights Reserved.</p>
+              <p className="text-[11px] text-slate-500">© {new Date().getFullYear()} VerifiedTutors. All Rights Reserved.</p>
             </div>
             {['For Students', 'For Tutors', 'Company'].map((title, idx) => (
               <div key={idx}>

@@ -100,7 +100,7 @@ export default function AdminLayout({ children }) {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e6f7f2] text-[#056852] border border-[#b2e8d8]">
                 <BookOpen size={17} />
               </div>
-              <span className="font-extrabold text-slate-900 text-[15px]">Tutor<span className="text-[#056852]">Connect</span></span>
+              <span className="font-extrabold text-slate-900 text-[15px]">Verified<span className="text-[#056852]">Tutors</span></span>
             </Link>
           ) : (
             <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-[#e6f7f2] text-[#056852] border border-[#b2e8d8]">

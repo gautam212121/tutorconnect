@@ -1,43 +1,30 @@
-import { PlatformConfig } from '../models/PlatformConfig.js';
-import { User } from '../models/User.js';
+import PlatformConfig from '../models/PlatformConfig.js';
+import User from '../models/User.js';
+import Subscription from '../models/Subscription.js';
 
-/**
- * Commission Calculation Service
- * Implements FR-MON-3, FR-MON-4, FR-MON-5 from the monetization spec.
- *
- * Commission is charged ONLY on a confirmed conversion (first completed paid session).
- * Rate decreases with tutor tenure. Subscription can reduce/eliminate it.
- */
-
-/**
- * Calculate the effective commission rate for a tutor.
- * Checks subscription first, then falls back to tenure-based tiers.
- */
 export async function calculateCommissionRate(tutorId) {
-  const tutor = await User.findById(tutorId).populate('activeSubscription');
+  const tutor = await User.findById(tutorId);
   if (!tutor) throw new Error('Tutor not found');
 
-  // FR-MON-4: If tutor has active subscription, use subscription's commission rate
-  if (tutor.activeSubscription && tutor.activeSubscription.status === 'active') {
-    const now = new Date();
-    if (tutor.activeSubscription.endDate > now) {
+  if (tutor.activeSubscription) {
+    const sub = await Subscription.findById(tutor.activeSubscription);
+    if (sub && sub.status === 'active' && new Date(sub.endDate) > new Date()) {
       return {
-        rate: tutor.activeSubscription.commissionRate,
+        rate: sub.commissionRate,
         source: 'subscription',
-        tier: tutor.activeSubscription.plan?.name || 'Premium',
+        tier: 'Premium',
       };
     }
   }
 
-  // FR-MON-5: Tenure-based decreasing commission
   const config = await PlatformConfig.getConfig();
   const sessions = tutor.completedSessions || 0;
 
-  const tier = config.commissionTiers.find(
+  const tier = (config.commissionTiers || []).find(
     t => sessions >= t.minSessions && sessions <= t.maxSessions
   );
 
-  const rate = tier ? tier.rate : 0.15; // default 15%
+  const rate = tier ? tier.rate : 0.15;
 
   return {
     rate,
@@ -47,10 +34,6 @@ export async function calculateCommissionRate(tutorId) {
   };
 }
 
-/**
- * Calculate commission amounts for a payment.
- * Returns { totalAmount, commissionAmount, tutorEarning, commissionRate }
- */
 export async function calculateCommissionAmounts(tutorId, totalAmount) {
   const { rate, source, tier } = await calculateCommissionRate(tutorId);
 
@@ -67,28 +50,19 @@ export async function calculateCommissionAmounts(tutorId, totalAmount) {
   };
 }
 
-/**
- * After a session is completed, increment the tutor's completed sessions
- * and recalculate their commission rate.
- */
 export async function incrementTutorSessions(tutorId) {
   const tutor = await User.findById(tutorId);
   if (!tutor) return;
 
-  tutor.completedSessions = (tutor.completedSessions || 0) + 1;
-
-  // Recalculate commission rate based on new session count
+  const newSessions = (tutor.completedSessions || 0) + 1;
   const { rate } = await calculateCommissionRate(tutorId);
-  tutor.currentCommissionRate = rate;
 
-  await tutor.save();
-  return tutor;
+  return User.findByIdAndUpdate(tutorId, {
+    completedSessions: newSessions,
+    currentCommissionRate: rate,
+  });
 }
 
-/**
- * Check if a tutor has free leads remaining this month.
- * Resets counter if the reset date has passed.
- */
 export async function checkFreeLeadsAvailable(tutorId) {
   const tutor = await User.findById(tutorId);
   if (!tutor) throw new Error('Tutor not found');
@@ -96,52 +70,44 @@ export async function checkFreeLeadsAvailable(tutorId) {
   const config = await PlatformConfig.getConfig();
   const now = new Date();
 
-  // Reset free leads counter if month has changed
-  if (!tutor.freeLeadsResetDate || tutor.freeLeadsResetDate < new Date(now.getFullYear(), now.getMonth(), 1)) {
-    tutor.freeLeadsUsed = 0;
-    tutor.freeLeadsResetDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    await tutor.save();
+  let used = tutor.freeLeadsUsed || 0;
+  if (!tutor.freeLeadsResetDate || new Date(tutor.freeLeadsResetDate) < new Date(now.getFullYear(), now.getMonth(), 1)) {
+    used = 0;
+    await User.findByIdAndUpdate(tutorId, {
+      freeLeadsUsed: 0,
+      freeLeadsResetDate: new Date(now.getFullYear(), now.getMonth(), 1),
+    });
   }
 
-  // Check subscription for extra lead limit
   let totalLeadLimit = config.freeLeadsPerMonth;
   if (tutor.activeSubscription) {
-    const sub = await tutor.populate('activeSubscription');
-    if (sub.activeSubscription?.status === 'active' && sub.activeSubscription.endDate > now) {
-      totalLeadLimit = sub.activeSubscription.leadLimit === -1
-        ? Infinity
-        : sub.activeSubscription.leadLimit;
+    const sub = await Subscription.findById(tutor.activeSubscription);
+    if (sub && sub.status === 'active' && new Date(sub.endDate) > now) {
+      totalLeadLimit = sub.leadLimit === -1 ? Infinity : sub.leadLimit;
     }
   }
 
   return {
-    used: tutor.freeLeadsUsed,
+    used,
     limit: totalLeadLimit === Infinity ? 'Unlimited' : totalLeadLimit,
-    remaining: totalLeadLimit === Infinity ? 'Unlimited' : Math.max(0, totalLeadLimit - tutor.freeLeadsUsed),
-    canReceiveLead: totalLeadLimit === Infinity || tutor.freeLeadsUsed < totalLeadLimit,
+    remaining: totalLeadLimit === Infinity ? 'Unlimited' : Math.max(0, totalLeadLimit - used),
+    canReceiveLead: totalLeadLimit === Infinity || used < totalLeadLimit,
   };
 }
 
-/**
- * Credit a lead back to tutor's free leads (after dispute auto-resolution).
- */
 export async function creditLeadBack(tutorId) {
   const tutor = await User.findById(tutorId);
   if (!tutor) return;
 
   if (tutor.freeLeadsUsed > 0) {
-    tutor.freeLeadsUsed -= 1;
-    await tutor.save();
+    await User.findByIdAndUpdate(tutorId, { freeLeadsUsed: tutor.freeLeadsUsed - 1 });
   }
 }
 
-/**
- * Get the full commission structure for display.
- */
 export async function getCommissionStructure() {
   const config = await PlatformConfig.getConfig();
   return {
-    tiers: config.commissionTiers.map(t => ({
+    tiers: (config.commissionTiers || []).map(t => ({
       label: t.label,
       minSessions: t.minSessions,
       maxSessions: t.maxSessions,

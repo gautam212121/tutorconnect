@@ -1,75 +1,136 @@
-import mongoose from 'mongoose';
+import { query, execute } from '../config/db.js';
 
-const leadSchema = new mongoose.Schema({
-  // Who submitted the request (student/parent)
-  student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  // Which tutor this lead was delivered to
-  tutor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+function parseJson(val, fallback) {
+  if (!val) return fallback;
+  if (typeof val === 'object') return val;
+  try { return JSON.parse(val); } catch { return fallback; }
+}
 
-  // Lead details
-  subject: { type: String, required: true },
-  classLevel: { type: String, required: true },
-  board: { type: String },
-  location: {
-    city: { type: String },
-    area: { type: String },
-    pincode: { type: String },
-    full: { type: String }
-  },
-  mode: { type: String, enum: ['Home', 'Online', 'Both'], default: 'Home' },
-  budget: { type: Number },
-  preferredGender: { type: String, enum: ['Male', 'Female', 'Any'], default: 'Any' },
-  message: { type: String },
-  preferredTiming: { type: String },
-  weeklyDays: [{ type: String }],
+export function formatLead(row) {
+  if (!row) return null;
+  return {
+    _id: row.id,
+    id: row.id,
+    student: row.student,
+    tutor: row.tutor,
+    subject: row.subject,
+    classLevel: row.classLevel,
+    board: row.board,
+    location: {
+      city: row.locationCity || '',
+      area: row.locationArea || '',
+      pincode: row.locationPincode || '',
+      full: row.locationFull || '',
+    },
+    mode: row.mode || 'Home',
+    budget: row.budget != null ? Number(row.budget) : undefined,
+    preferredGender: row.preferredGender || 'Any',
+    message: row.message,
+    preferredTiming: row.preferredTiming,
+    weeklyDays: parseJson(row.weeklyDays, []),
+    isOtpVerified: Boolean(row.isOtpVerified),
+    studentPhone: row.studentPhone,
+    studentEmail: row.studentEmail,
+    status: row.status || 'new',
+    source: row.source || 'search',
+    deliveredAt: row.deliveredAt,
+    contactedAt: row.contactedAt,
+    respondedAt: row.respondedAt,
+    convertedAt: row.convertedAt,
+    disputeReason: row.disputeReason,
+    disputedAt: row.disputedAt,
+    replacementLeadId: row.replacementLeadId,
+    isFreeLeadSlot: Boolean(row.isFreeLeadSlot),
+    booking: row.booking,
+    leadDisplayId: row.leadDisplayId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
 
-  // Verification
-  isOtpVerified: { type: Boolean, default: false },
-  studentPhone: { type: String },
-  studentEmail: { type: String },
-
-  // Lead lifecycle
-  status: {
-    type: String,
-    enum: ['new', 'contacted', 'responded', 'converted', 'expired', 'replaced', 'disputed', 'fake'],
-    default: 'new'
-  },
-  source: { type: String, enum: ['search', 'admin', 'auto', 'booking'], default: 'search' },
-
-  // Timestamps for lifecycle tracking
-  deliveredAt: { type: Date, default: Date.now },
-  contactedAt: { type: Date },
-  respondedAt: { type: Date },
-  convertedAt: { type: Date },
-
-  // Dispute tracking
-  disputeReason: { type: String },
-  disputedAt: { type: Date },
-  replacementLeadId: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead' },
-
-  // Was this a free-tier lead or paid?
-  isFreeLeadSlot: { type: Boolean, default: true },
-
-  // Linked booking (if converted)
-  booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
-
-  // Lead ID for display (e.g., #LD-7845)
-  leadDisplayId: { type: String, unique: true },
-}, { timestamps: true });
-
-// Auto-generate display ID
-leadSchema.pre('save', async function(next) {
-  if (!this.leadDisplayId) {
-    const count = await mongoose.model('Lead').countDocuments();
-    this.leadDisplayId = `#LD-${(7840 + count + 1).toString()}`;
+export class Lead {
+  static async find(filter = {}) {
+    let sql = 'SELECT * FROM leads WHERE 1=1';
+    const params = [];
+    if (filter.tutor) { sql += ' AND tutor = ?'; params.push(filter.tutor); }
+    if (filter.student) { sql += ' AND student = ?'; params.push(filter.student); }
+    if (filter.status) { sql += ' AND status = ?'; params.push(filter.status); }
+    sql += ' ORDER BY id DESC';
+    const rows = await query(sql, params);
+    return rows.map(formatLead);
   }
-  next();
-});
 
-// Indexes for efficient queries
-leadSchema.index({ tutor: 1, status: 1 });
-leadSchema.index({ student: 1 });
-leadSchema.index({ deliveredAt: -1 });
-leadSchema.index({ status: 1, createdAt: -1 });
+  static async findById(id) {
+    if (!id) return null;
+    const rows = await query('SELECT * FROM leads WHERE id = ? LIMIT 1', [id]);
+    return rows[0] ? formatLead(rows[0]) : null;
+  }
 
-export const Lead = mongoose.model('Lead', leadSchema);
+  static async create(data) {
+    const countRows = await query('SELECT COUNT(*) as count FROM leads');
+    const count = countRows[0] ? Number(countRows[0].count) : 0;
+    const leadDisplayId = data.leadDisplayId || `#LD-${(7840 + count + 1).toString()}`;
+
+    const {
+      student, tutor, subject, classLevel, board, location = {}, mode = 'Home', budget,
+      preferredGender = 'Any', message, preferredTiming, weeklyDays, isOtpVerified = false,
+      studentPhone, studentEmail, status = 'new', source = 'search', isFreeLeadSlot = true,
+      booking, replacementLeadId
+    } = data;
+
+    const sql = `INSERT INTO leads (
+      student, tutor, subject, classLevel, board, locationCity, locationArea,
+      locationPincode, locationFull, mode, budget, preferredGender, message,
+      preferredTiming, weeklyDays, isOtpVerified, studentPhone, studentEmail,
+      status, source, isFreeLeadSlot, booking, replacementLeadId, leadDisplayId
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    const params = [
+      student, tutor, subject, classLevel, board || null, location.city || null,
+      location.area || null, location.pincode || null, location.full || null, mode,
+      budget || null, preferredGender, message || null, preferredTiming || null,
+      weeklyDays ? JSON.stringify(weeklyDays) : null, isOtpVerified ? 1 : 0,
+      studentPhone || null, studentEmail || null, status, source, isFreeLeadSlot ? 1 : 0,
+      booking || null, replacementLeadId || null, leadDisplayId
+    ];
+
+    const res = await execute(sql, params);
+    return this.findById(res.insertId);
+  }
+
+  static async findByIdAndUpdate(id, updates = {}) {
+    if (!id) return null;
+    const lead = await this.findById(id);
+    if (!lead) return null;
+
+    const fields = [];
+    const params = [];
+
+    if (updates.status !== undefined) { fields.push('status = ?'); params.push(updates.status); }
+    if (updates.contactedAt !== undefined) { fields.push('contactedAt = ?'); params.push(updates.contactedAt); }
+    if (updates.respondedAt !== undefined) { fields.push('respondedAt = ?'); params.push(updates.respondedAt); }
+    if (updates.convertedAt !== undefined) { fields.push('convertedAt = ?'); params.push(updates.convertedAt); }
+    if (updates.disputeReason !== undefined) { fields.push('disputeReason = ?'); params.push(updates.disputeReason); }
+    if (updates.disputedAt !== undefined) { fields.push('disputedAt = ?'); params.push(updates.disputedAt); }
+    if (updates.replacementLeadId !== undefined) { fields.push('replacementLeadId = ?'); params.push(updates.replacementLeadId); }
+    if (updates.booking !== undefined) { fields.push('booking = ?'); params.push(updates.booking); }
+
+    if (fields.length === 0) return lead;
+
+    params.push(id);
+    await execute(`UPDATE leads SET ${fields.join(', ')} WHERE id = ?`, params);
+    return this.findById(id);
+  }
+
+  static async countDocuments(filter = {}) {
+    let sql = 'SELECT COUNT(*) as count FROM leads WHERE 1=1';
+    const params = [];
+    if (filter.status) { sql += ' AND status = ?'; params.push(filter.status); }
+    if (filter.tutor) { sql += ' AND tutor = ?'; params.push(filter.tutor); }
+    if (filter.student) { sql += ' AND student = ?'; params.push(filter.student); }
+    const rows = await query(sql, params);
+    return rows[0] ? Number(rows[0].count) : 0;
+  }
+}
+
+export default Lead;

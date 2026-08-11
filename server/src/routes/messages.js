@@ -1,5 +1,6 @@
 import express from 'express';
-import { Message } from '../models/Message.js';
+import Message from '../models/Message.js';
+import User from '../models/User.js';
 import { requireAnyRole } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -8,9 +9,11 @@ const getIo = (req) => req.app.get('io');
 // ── Get messages for a booking ──────────────────────────────────────────────
 router.get('/booking/:bookingId', requireAnyRole(['student', 'tutor', 'admin']), async (req, res) => {
   try {
-    const messages = await Message.find({ booking: req.params.bookingId })
-      .populate('from to', 'name avatar role')
-      .sort({ createdAt: 1 });
+    const messages = await Message.find({ booking: req.params.bookingId });
+    for (const m of messages) {
+      m.from = await User.findById(m.from);
+      m.to = await User.findById(m.to);
+    }
     res.json(messages);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -21,7 +24,7 @@ router.get('/booking/:bookingId', requireAnyRole(['student', 'tutor', 'admin']),
 router.get('/conversation/:userId1/:userId2', requireAnyRole(['student', 'tutor', 'admin']), async (req, res) => {
   try {
     const { userId1, userId2 } = req.params;
-    if (req.user.role !== 'admin' && req.user.id !== userId1 && req.user.id !== userId2) {
+    if (req.user.role !== 'admin' && String(req.user.id) !== String(userId1) && String(req.user.id) !== String(userId2)) {
       return res.status(403).json({ message: 'Access denied' });
     }
     const messages = await Message.find({
@@ -29,7 +32,11 @@ router.get('/conversation/:userId1/:userId2', requireAnyRole(['student', 'tutor'
         { from: userId1, to: userId2 },
         { from: userId2, to: userId1 },
       ]
-    }).populate('from to', 'name avatar role').sort({ createdAt: 1 });
+    });
+    for (const m of messages) {
+      m.from = await User.findById(m.from);
+      m.to = await User.findById(m.to);
+    }
     res.json(messages);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -40,29 +47,31 @@ router.get('/conversation/:userId1/:userId2', requireAnyRole(['student', 'tutor'
 router.get('/inbox/:userId', requireAnyRole(['student', 'tutor', 'admin']), async (req, res) => {
   try {
     const { userId } = req.params;
-    if (req.user.role !== 'admin' && req.user.id !== userId) {
+    if (req.user.role !== 'admin' && String(req.user.id) !== String(userId)) {
       return res.status(403).json({ message: 'Access denied' });
     }
-    const messages = await Message.find({
-      $or: [{ from: userId }, { to: userId }]
-    })
-      .populate('from to', 'name avatar role')
-      .populate('booking', 'subject mode status')
-      .sort({ createdAt: -1 });
+    const messages = await Message.find({ from: userId });
+    const received = await Message.find({ to: userId });
+    const allMessages = [...messages, ...received];
+    allMessages.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-    // Group by conversation partner
     const conversations = {};
-    for (const msg of messages) {
-      const partnerId = msg.from._id.toString() === userId ? msg.to._id.toString() : msg.from._id.toString();
+    for (const msg of allMessages) {
+      const fromId = String(msg.from);
+      const toId = String(msg.to);
+      const partnerId = fromId === String(userId) ? toId : fromId;
+
       if (!conversations[partnerId]) {
-        const partner = msg.from._id.toString() === userId ? msg.to : msg.from;
+        const partner = await User.findById(partnerId);
+        msg.from = await User.findById(msg.from);
+        msg.to = await User.findById(msg.to);
         conversations[partnerId] = {
           partner,
           lastMessage: msg,
           unread: 0,
         };
       }
-      if (!msg.read && msg.to._id.toString() === userId) {
+      if (!msg.read && toId === String(userId)) {
         conversations[partnerId].unread++;
       }
     }
@@ -77,7 +86,7 @@ router.get('/inbox/:userId', requireAnyRole(['student', 'tutor', 'admin']), asyn
 router.post('/', requireAnyRole(['student', 'tutor', 'admin']), async (req, res) => {
   try {
     const { from, to, bookingId, type, content, meetUrl } = req.body;
-    if (req.user.role !== 'admin' && req.user.id !== from) {
+    if (req.user.role !== 'admin' && String(req.user.id) !== String(from)) {
       return res.status(403).json({ message: 'Access denied' });
     }
     const msg = await Message.create({
@@ -87,7 +96,8 @@ router.post('/', requireAnyRole(['student', 'tutor', 'admin']), async (req, res)
       content,
       meetUrl: meetUrl || undefined,
     });
-    await msg.populate('from to', 'name avatar role');
+    msg.from = await User.findById(from);
+    msg.to = await User.findById(to);
     getIo(req)?.emit('newMessage', msg);
     res.status(201).json(msg);
   } catch (err) {
@@ -98,7 +108,7 @@ router.post('/', requireAnyRole(['student', 'tutor', 'admin']), async (req, res)
 // ── Mark messages as read ──────────────────────────────────────────────────────
 router.patch('/read/:userId/:partnerId', requireAnyRole(['student', 'tutor', 'admin']), async (req, res) => {
   try {
-    if (req.user.role !== 'admin' && req.user.id !== req.params.userId) {
+    if (req.user.role !== 'admin' && String(req.user.id) !== String(req.params.userId)) {
       return res.status(403).json({ message: 'Access denied' });
     }
     await Message.updateMany(

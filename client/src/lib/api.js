@@ -24,7 +24,13 @@ export const adminApi = {
   
   getCategories: () => api.get('admin-new/categories').then(res => res.data),
   createCategory: (data) => api.post('admin-new/categories', data).then(res => res.data),
+  createCategoryMultipart: (formData) => api.post('admin-new/categories', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(res => res.data),
   updateCategory: (id, data) => api.put(`admin-new/categories/${id}`, data).then(res => res.data),
+  updateCategoryMultipart: (id, formData) => api.put(`admin-new/categories/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(res => res.data),
   deleteCategory: (id) => api.delete(`admin-new/categories/${id}`).then(res => res.data),
   
   getUsers: (role) => api.get(`admin-new/users${role ? `?role=${role}` : ''}`).then(res => res.data),

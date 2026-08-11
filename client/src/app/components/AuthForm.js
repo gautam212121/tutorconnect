@@ -3,11 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle2, ChevronRight, ChevronLeft, MapPin, Calendar, BookOpen, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle2, ChevronRight, ChevronLeft, MapPin, Calendar, BookOpen, Loader2, KeyRound, ArrowRight } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
 
 export default function AuthForm({ mode = 'login' }) {
   const [step, setStep] = useState(1);
+  const [useOtpLogin, setUseOtpLogin] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpValue, setOtpValue] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+
   const [form, setForm] = useState({
     // Step 1: Account Info
     name: '', mobile: '', email: '', password: '', confirmPassword: '', role: 'student',
@@ -69,6 +74,75 @@ export default function AuthForm({ mode = 'login' }) {
     setStep(step - 1);
   };
 
+  const handleSendLoginOtp = async () => {
+    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      return setError('Please enter a valid registered email address');
+    }
+
+    setSendingOtp(true);
+    setError('');
+    setSuccess('');
+
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+    try {
+      const response = await fetch(`${baseUrl}/api/v1/auth/send-login-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to send Login OTP');
+
+      setOtpSent(true);
+      setSuccess(data.message || 'OTP sent successfully to your email address!');
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleVerifyLoginOtp = async (e) => {
+    e.preventDefault();
+    if (!otpValue || otpValue.length < 6) {
+      return setError('Please enter the complete 6-digit OTP code');
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+    try {
+      const response = await fetch(`${baseUrl}/api/v1/auth/login-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email, otp: otpValue }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'OTP Login failed');
+
+      localStorage.setItem('tutorconnect-token', data.token);
+      localStorage.setItem('tutorconnect-user', JSON.stringify(data.user));
+      window.dispatchEvent(new Event('auth-change'));
+
+      setSuccess('Signed in successfully with OTP! Redirecting...');
+
+      setTimeout(() => {
+        const role = data.user.role;
+        const destination = role === 'admin' ? '/dashboard/admin' : role === 'tutor' ? '/dashboard/tutor' : '/dashboard/student';
+        router.push(destination);
+      }, 600);
+    } catch (err) {
+      setError(err.message || 'OTP Verification failed');
+      setLoading(false);
+    }
+  };
+
   const submitAuth = async () => {
     if (mode === 'register' && !validateStep(4)) return;
     
@@ -115,17 +189,20 @@ export default function AuthForm({ mode = 'login' }) {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
-      const idToken = credential?.idToken;
-
-      if (!idToken) {
-        throw new Error('Failed to retrieve Google ID token.');
-      }
+      const firebaseUser = result.user;
+      const idToken = credential?.idToken || (await firebaseUser.getIdToken());
 
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       const response = await fetch(`${baseUrl}/api/v1/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential: idToken }),
+        body: JSON.stringify({
+          credential: idToken,
+          email: firebaseUser.email,
+          name: firebaseUser.displayName,
+          picture: firebaseUser.photoURL,
+          googleId: firebaseUser.uid,
+        }),
       });
 
       const data = await response.json();
@@ -160,29 +237,146 @@ export default function AuthForm({ mode = 'login' }) {
   if (mode === 'login') {
     return (
       <div className="w-full">
-        {error && <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-rose-200 bg-rose-50/90 p-3.5 text-xs font-medium text-rose-700"><AlertCircle size={18} className="shrink-0" /><span>{error}</span></div>}
-        {success && <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-3.5 text-xs font-medium text-emerald-700"><CheckCircle2 size={18} className="shrink-0" /><span>{success}</span></div>}
-        
-        <form onSubmit={(e) => { e.preventDefault(); submitAuth(); }} className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Email Address</label>
-            <div className="relative">
-              <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="you@example.com" />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Password</label>
-            <div className="relative">
-              <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-11 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="••••••••" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
-            </div>
-          </div>
-          <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#056852] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#045241] shadow-lg shadow-[#056852]/20 disabled:opacity-70">
-            {loading ? <Loader2 size={18} className="animate-spin" /> : 'Log In'}
+        {/* Login Method Toggle Tabs */}
+        <div className="mb-6 flex rounded-2xl bg-slate-100 p-1 border border-slate-200">
+          <button
+            type="button"
+            onClick={() => {
+              setUseOtpLogin(false);
+              setError('');
+              setSuccess('');
+            }}
+            className={`flex-1 rounded-xl py-2 text-xs font-bold transition ${!useOtpLogin ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+          >
+            Password Login
           </button>
-        </form>
+          <button
+            type="button"
+            onClick={() => {
+              setUseOtpLogin(true);
+              setError('');
+              setSuccess('');
+            }}
+            className={`flex-1 rounded-xl py-2 text-xs font-bold transition ${useOtpLogin ? 'bg-white text-[#056852] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+          >
+            🔑 Login with OTP
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-rose-200 bg-rose-50/90 p-3.5 text-xs font-medium text-rose-700">
+            <AlertCircle size={18} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-3.5 text-xs font-medium text-emerald-700">
+            <CheckCircle2 size={18} className="shrink-0" />
+            <span>{success}</span>
+          </div>
+        )}
+
+        {useOtpLogin ? (
+          /* OTP LOGIN FLOW */
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Registered Email Address</label>
+              <div className="relative">
+                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="email"
+                  value={form.email}
+                  disabled={otpSent}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10 disabled:opacity-60"
+                  placeholder="student@example.com / tutor@example.com"
+                />
+              </div>
+            </div>
+
+            {!otpSent ? (
+              <button
+                type="button"
+                onClick={handleSendLoginOtp}
+                disabled={sendingOtp}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#056852] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#045241] shadow-lg shadow-[#056852]/20 disabled:opacity-70"
+              >
+                {sendingOtp ? <Loader2 size={18} className="animate-spin" /> : 'Send Login OTP'}
+                {!sendingOtp && <ArrowRight size={16} />}
+              </button>
+            ) : (
+              <form onSubmit={handleVerifyLoginOtp} className="space-y-4 animate-in fade-in duration-200">
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Enter 6-Digit OTP</label>
+                  <div className="relative">
+                    <KeyRound size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={otpValue}
+                      onChange={(e) => setOtpValue(e.target.value)}
+                      className="w-full rounded-2xl border border-teal-500 bg-white py-3 pl-11 pr-4 text-center tracking-[8px] font-mono text-lg font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-teal-500/20"
+                      placeholder="123456"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpSent(false);
+                      setOtpValue('');
+                    }}
+                    className="text-slate-500 hover:text-slate-800 underline"
+                  >
+                    Change Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSendLoginOtp}
+                    disabled={sendingOtp}
+                    className="text-[#056852] font-semibold hover:underline"
+                  >
+                    Resend OTP
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#056852] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#045241] shadow-lg shadow-[#056852]/20 disabled:opacity-70"
+                >
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : 'Verify & Login'}
+                </button>
+              </form>
+            )}
+          </div>
+        ) : (
+          /* STANDARD PASSWORD LOGIN */
+          <form onSubmit={(e) => { e.preventDefault(); submitAuth(); }} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Email Address</label>
+              <div className="relative">
+                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="your@email.com" />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Password</label>
+              <div className="relative">
+                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-11 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="••••••••" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+              </div>
+            </div>
+            <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#056852] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#045241] shadow-lg shadow-[#056852]/20 disabled:opacity-70">
+              {loading ? <Loader2 size={18} className="animate-spin" /> : 'Log In'}
+            </button>
+          </form>
+        )}
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
@@ -235,112 +429,132 @@ export default function AuthForm({ mode = 'login' }) {
           <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
             <div>
               <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Full Name *</label>
-              <div className="relative"><User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" /><input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-4 text-sm focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none" placeholder="Aarav Sharma" /></div>
+              <div className="relative">
+                <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="John Doe" />
+              </div>
             </div>
+
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">I am registering as *</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" onClick={() => setForm({ ...form, role: 'student' })} className={`flex items-center justify-center gap-2 rounded-2xl border p-3 text-xs font-bold transition ${form.role === 'student' ? 'border-[#056852] bg-emerald-50/50 text-[#056852]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>Student / Parent</button>
+                <button type="button" onClick={() => setForm({ ...form, role: 'tutor' })} className={`flex items-center justify-center gap-2 rounded-2xl border p-3 text-xs font-bold transition ${form.role === 'tutor' ? 'border-[#056852] bg-emerald-50/50 text-[#056852]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>Teacher / Tutor</button>
+              </div>
+            </div>
+
             <div>
               <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Mobile Number *</label>
-              <input type="text" value={form.mobile} onChange={e => setForm({...form, mobile: e.target.value})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none" placeholder="+91 9876543210" />
+              <input type="tel" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="+91 9876543210" />
             </div>
+
             <div>
               <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Email Address *</label>
-              <div className="relative"><Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" /><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-4 text-sm focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none" placeholder="you@example.com" /></div>
+              <div className="relative">
+                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="your@email.com" />
+              </div>
             </div>
+
             <div>
               <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Password *</label>
-              <div className="relative"><Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" /><input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-10 text-sm focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none" placeholder="••••••••" /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
-              <div className="mt-2 flex gap-1 h-1.5 w-full">
-                {[1,2,3,4].map(n => <div key={n} className={`h-full flex-1 rounded-full ${n <= passStrength.score ? passStrength.color : 'bg-slate-100'}`} />)}
+              <div className="relative">
+                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-11 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="••••••••" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
               </div>
-              <p className="mt-1 text-[10px] font-semibold text-slate-400 text-right">{passStrength.text}</p>
+              {form.password && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${passStrength.color} transition-all duration-300`} style={{ width: `${(passStrength.score / 4) * 100}%` }} />
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500">{passStrength.text}</span>
+                </div>
+              )}
             </div>
+
             <div>
               <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Confirm Password *</label>
-              <div className="relative"><Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" /><input type={showPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={e => setForm({...form, confirmPassword: e.target.value})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-4 text-sm focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none" placeholder="••••••••" /></div>
+              <input type="password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="••••••••" />
             </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Date of Birth</label>
-                <input type="date" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm focus:border-teal-500 outline-none" />
+                <input type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900 outline-none" />
               </div>
               <div>
                 <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Gender</label>
-                <select value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm focus:border-teal-500 outline-none">
-                  <option value="">Select...</option>
+                <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900 outline-none">
+                  <option value="">Select</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Class/Grade *</label>
-                <select value={form.grade} onChange={e => setForm({...form, grade: e.target.value})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm focus:border-teal-500 outline-none">
-                  <option value="">Select...</option>
-                  <option value="10th">10th</option>
-                  <option value="11th">11th</option>
-                  <option value="12th">12th</option>
-                  <option value="College">College</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Board *</label>
-                <select value={form.board} onChange={e => setForm({...form, board: e.target.value})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm focus:border-teal-500 outline-none">
-                  <option value="">Select...</option>
-                  <option value="CBSE">CBSE</option>
-                  <option value="ICSE">ICSE</option>
-                  <option value="State Board">State Board</option>
-                  <option value="IB">IB</option>
-                  <option value="IGCSE">IGCSE</option>
-                </select>
-              </div>
-            </div>
+
             <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">School/College Name</label>
-              <div className="relative"><BookOpen size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" /><input type="text" value={form.school} onChange={e => setForm({...form, school: e.target.value})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-4 text-sm focus:border-teal-500 outline-none" placeholder="Apex Academy" /></div>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Medium</label>
-              <div className="flex gap-2">
-                {['English', 'Hindi', 'Both'].map(m => (
-                  <button key={m} type="button" onClick={() => setForm({...form, medium: m})} className={`flex-1 py-2.5 rounded-xl border text-xs font-bold transition ${form.medium === m ? 'border-[#056852] bg-[#e6f7f2] text-[#056852]' : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:bg-slate-100'}`}>{m}</button>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Class / Grade *</label>
+              <select value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900 outline-none">
+                <option value="">Select Class</option>
+                {['Class 1-5', 'Class 6-8', 'Class 9', 'Class 10', 'Class 11', 'Class 12', 'IIT-JEE', 'NEET', 'College/Degree', 'Other'].map(g => (
+                  <option key={g} value={g}>{g}</option>
                 ))}
-              </div>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Educational Board *</label>
+              <select value={form.board} onChange={(e) => setForm({ ...form, board: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900 outline-none">
+                <option value="">Select Board</option>
+                {['CBSE', 'ICSE', 'State Board (UP)', 'IGCSE', 'IB', 'Other'].map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">School Name</label>
+              <input type="text" value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900" placeholder="e.g. CMS Lucknow" />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Medium of Instruction</label>
+              <select value={form.medium} onChange={(e) => setForm({ ...form, medium: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900 outline-none">
+                <option value="">Select Medium</option>
+                <option value="English">English Medium</option>
+                <option value="Hindi">Hindi Medium</option>
+              </select>
             </div>
           </div>
         )}
 
         {step === 3 && (
           <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">State</label>
-                <input type="text" value={form.address.state} onChange={e => setForm({...form, address: {...form.address, state: e.target.value}})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm focus:border-teal-500 outline-none" placeholder="e.g. Maharashtra" />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">City *</label>
-                <input type="text" value={form.address.city} onChange={e => setForm({...form, address: {...form.address, city: e.target.value}})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm focus:border-teal-500 outline-none" placeholder="Mumbai" />
-              </div>
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">City *</label>
+              <input type="text" value={form.address.city} onChange={(e) => setForm({ ...form, address: { ...form.address, city: e.target.value } })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900" placeholder="Lucknow" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Area/Locality</label>
-                <input type="text" value={form.address.area} onChange={e => setForm({...form, address: {...form.address, area: e.target.value}})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm focus:border-teal-500 outline-none" placeholder="Andheri West" />
-              </div>
+
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Area / Locality</label>
+              <input type="text" value={form.address.area} onChange={(e) => setForm({ ...form, address: { ...form.address, area: e.target.value } })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900" placeholder="Gomti Nagar, Aliganj, etc." />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Pincode *</label>
-                <input type="text" value={form.address.pincode} onChange={e => setForm({...form, address: {...form.address, pincode: e.target.value}})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm focus:border-teal-500 outline-none" placeholder="400053" />
+                <input type="text" value={form.address.pincode} onChange={(e) => setForm({ ...form, address: { ...form.address, pincode: e.target.value } })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900" placeholder="226010" />
               </div>
-            </div>
-            <div>
-              <button type="button" className="w-full flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">
-                <MapPin size={16} className="text-blue-500" /> Use Current Location
-              </button>
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">State</label>
+                <input type="text" value={form.address.state} onChange={(e) => setForm({ ...form, address: { ...form.address, state: e.target.value } })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900" placeholder="Uttar Pradesh" />
+              </div>
             </div>
           </div>
         )}
@@ -348,60 +562,40 @@ export default function AuthForm({ mode = 'login' }) {
         {step === 4 && (
           <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
             <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Preferred Days</label>
-              <div className="flex flex-wrap gap-2">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                  <button key={day} type="button" onClick={() => handleArrayToggle('schedule', 'days', day)} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${form.schedule.days.includes(day) ? 'bg-[#056852] text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                    {day}
-                  </button>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Classes Per Week</label>
+              <div className="grid grid-cols-4 gap-2">
+                {[2, 3, 5, 6].map(num => (
+                  <button key={num} type="button" onClick={() => setForm({ ...form, schedule: { ...form.schedule, classesPerWeek: num } })} className={`rounded-xl border p-2 text-xs font-bold transition ${form.schedule.classesPerWeek === num ? 'border-[#056852] bg-emerald-50 text-[#056852]' : 'border-slate-200 text-slate-600'}`}>{num} Days</button>
                 ))}
               </div>
             </div>
+
             <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Preferred Time Slots</label>
-              <div className="flex flex-wrap gap-2">
-                {['Morning', 'Afternoon', 'Evening'].map(slot => (
-                  <button key={slot} type="button" onClick={() => handleArrayToggle('schedule', 'slots', slot)} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${form.schedule.slots.includes(slot) ? 'bg-[#056852] text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                    {slot}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Start Date</label>
-                <div className="relative"><Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" /><input type="date" value={form.schedule.startDate} onChange={e => setForm({...form, schedule: {...form.schedule, startDate: e.target.value}})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-4 text-sm focus:border-teal-500 outline-none" /></div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Classes per week</label>
-                <input type="number" min="1" max="7" value={form.schedule.classesPerWeek} onChange={e => setForm({...form, schedule: {...form.schedule, classesPerWeek: e.target.value}})} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm focus:border-teal-500 outline-none" />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Session Duration</label>
-              <div className="flex gap-2">
-                {['1 Hour', '1.5 Hours', '2 Hours'].map(d => (
-                  <button key={d} type="button" onClick={() => setForm({...form, schedule: {...form.schedule, duration: d}})} className={`flex-1 py-2.5 rounded-xl border text-xs font-bold transition ${form.schedule.duration === d ? 'border-[#056852] bg-[#e6f7f2] text-[#056852]' : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:bg-slate-100'}`}>{d}</button>
-                ))}
-              </div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Preferred Session Duration</label>
+              <select value={form.schedule.duration} onChange={(e) => setForm({ ...form, schedule: { ...form.schedule, duration: e.target.value } })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-xs text-slate-900 outline-none">
+                <option value="1 Hour">1 Hour / Session</option>
+                <option value="1.5 Hours">1.5 Hours / Session</option>
+                <option value="2 Hours">2 Hours / Session</option>
+              </select>
             </div>
           </div>
         )}
 
-        {/* Form Controls */}
-        <div className="mt-8 flex gap-3 pt-4 border-t border-slate-100">
+        {/* Footer Actions */}
+        <div className="flex items-center justify-between gap-3 pt-4">
           {step > 1 && (
-            <button type="button" onClick={handleBack} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition">
-              <ChevronLeft size={20} />
+            <button type="button" onClick={handleBack} className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50">
+              <ChevronLeft size={16} /> Back
             </button>
           )}
+
           {step < 4 ? (
-            <button type="button" onClick={handleNext} className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-[#056852] py-3.5 text-sm font-bold text-white shadow-lg shadow-[#056852]/20 transition hover:bg-[#045241]">
-              Next Step <ChevronRight size={18} />
+            <button type="button" onClick={handleNext} className="ml-auto flex items-center gap-1.5 rounded-xl bg-[#056852] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#045241]">
+              Next <ChevronRight size={16} />
             </button>
           ) : (
-            <button type="button" onClick={submitAuth} disabled={loading} className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-teal-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-700 disabled:opacity-70">
-              {loading ? <Loader2 size={18} className="animate-spin" /> : 'Complete Registration'}
+            <button type="button" onClick={submitAuth} disabled={loading} className="ml-auto flex items-center gap-2 rounded-xl bg-[#056852] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#045241] disabled:opacity-70">
+              {loading ? <Loader2 size={16} className="animate-spin" /> : 'Complete Registration'}
             </button>
           )}
         </div>

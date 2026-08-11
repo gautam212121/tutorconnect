@@ -1,26 +1,25 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import mongoose from 'mongoose';
-import { getBookings, updateBookingStatus } from '../dataStore.js';
-import { User } from '../models/User.js';
-import { Course } from '../models/Course.js';
-import { Booking } from '../models/Booking.js';
-import { CallbackRequest } from '../models/CallbackRequest.js';
-import { Review } from '../models/Review.js';
-import { Notification } from '../models/Notification.js';
-import { Settings } from '../models/Settings.js';
-import { Category } from '../models/Category.js';
+import { execute } from '../config/db.js';
+import User from '../models/User.js';
+import Course from '../models/Course.js';
+import Booking from '../models/Booking.js';
+import CallbackRequest from '../models/CallbackRequest.js';
+import Review from '../models/Review.js';
+import Notification from '../models/Notification.js';
+import Settings from '../models/Settings.js';
+import Category from '../models/Category.js';
+import { upload, getUploadedImageUrl } from '../config/upload.js';
 
 const router = express.Router();
 
-// Get io instance from app
 const getIo = (req) => req.app.get('io');
 
 // ── Settings ──
 router.get('/settings', async (req, res) => {
   try {
     let settings = await Settings.findOne();
-    if (!settings) settings = await Settings.create({});
+    if (!settings) settings = await Settings.findOneAndUpdate({}, {});
     res.json(settings);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -29,7 +28,7 @@ router.get('/settings', async (req, res) => {
 
 router.put('/settings', async (req, res) => {
   try {
-    const settings = await Settings.findOneAndUpdate({}, req.body, { new: true, upsert: true });
+    const settings = await Settings.findOneAndUpdate({}, req.body);
     getIo(req)?.emit('settingsUpdated', settings);
     res.json(settings);
   } catch (err) {
@@ -40,18 +39,20 @@ router.put('/settings', async (req, res) => {
 // ── Categories ──
 router.get('/categories', async (req, res) => {
   try {
-    const categories = await Category.find().sort({ createdAt: -1 });
-    // In a real scenario, aggregate counts from Courses and Users. For now, returning standard data.
+    const categories = await Category.find();
     res.json(categories);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-router.post('/categories', async (req, res) => {
+router.post('/categories', upload.single('image'), async (req, res) => {
   try {
-    const category = new Category(req.body);
-    await category.save();
+    const payload = { ...req.body };
+    if (req.file) {
+      payload.image = getUploadedImageUrl(req.file.filename);
+    }
+    const category = await Category.create(payload);
     getIo(req)?.emit('categoryCreated', category);
     res.status(201).json(category);
   } catch (err) {
@@ -59,11 +60,22 @@ router.post('/categories', async (req, res) => {
   }
 });
 
-router.put('/categories/:id', async (req, res) => {
+router.put('/categories/:id', upload.single('image'), async (req, res) => {
   try {
-    const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    getIo(req)?.emit('categoryUpdated', category);
-    res.json(category);
+    const category = await Category.findById(req.params.id);
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+    const payload = { ...req.body };
+    if (req.file) {
+      payload.image = getUploadedImageUrl(req.file.filename);
+    }
+    const { name, image, description, priority, status, type, curriculum } = payload;
+    await execute(
+      'UPDATE categories SET name = COALESCE(?, name), image = COALESCE(?, image), description = COALESCE(?, description), priority = COALESCE(?, priority), status = COALESCE(?, status), type = COALESCE(?, type), curriculum = COALESCE(?, curriculum) WHERE id = ?',
+      [name || null, image || null, description || null, priority || null, status || null, type || null, curriculum ? JSON.stringify(curriculum) : null, req.params.id]
+    );
+    const updated = await Category.findById(req.params.id);
+    getIo(req)?.emit('categoryUpdated', updated);
+    res.json(updated);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -71,7 +83,7 @@ router.put('/categories/:id', async (req, res) => {
 
 router.delete('/categories/:id', async (req, res) => {
   try {
-    await Category.findByIdAndDelete(req.params.id);
+    await execute('DELETE FROM categories WHERE id = ?', [req.params.id]);
     getIo(req)?.emit('categoryDeleted', req.params.id);
     res.json({ message: 'Category deleted' });
   } catch (err) {
@@ -82,18 +94,17 @@ router.delete('/categories/:id', async (req, res) => {
 // ── Admin Stats ──
 router.get('/stats', async (req, res) => {
   try {
-    const [totalTutors, totalStudents, activeCourses, totalBookings, todaysBookings, pendingApprovals] = await Promise.all([
+    const [totalTutors, totalStudents, activeCourses, totalBookings, pendingApprovals] = await Promise.all([
       User.countDocuments({ role: 'tutor' }),
       User.countDocuments({ role: 'student' }),
-      Course.countDocuments({ status: 'active' }),
+      Course.find({ status: 'active' }).then(res => res.length),
       Booking.countDocuments(),
-      Booking.countDocuments({ createdAt: { $gte: new Date(new Date().setHours(0,0,0,0)) } }),
       User.countDocuments({ role: 'tutor', status: 'pending' }),
     ]);
     res.json({
       totalTutors, totalStudents, activeCourses,
       totalRevenue: 0,
-      todaysBookings, pendingApprovals,
+      todaysBookings: 0, pendingApprovals,
       tutorChange: '+0%', studentChange: '+0%',
       courseChange: '+0%', revenueChange: '+0%', bookingChange: '+0%',
     });
@@ -105,8 +116,8 @@ router.get('/stats', async (req, res) => {
 // ── Recent Activity ──
 router.get('/recent-activity', async (req, res) => {
   try {
-    const recentUsers = await User.find().sort({ createdAt: -1 }).limit(10);
-    const activity = recentUsers.map(u => ({
+    const recentUsers = await User.find();
+    const activity = recentUsers.slice(0, 10).map(u => ({
       icon: u.role === 'tutor' ? '👨‍🏫' : u.role === 'student' ? '👨‍🎓' : '🛡️',
       text: `${u.name} joined as ${u.role}`,
       time: u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN') : 'Recently',
@@ -118,25 +129,27 @@ router.get('/recent-activity', async (req, res) => {
 });
 
 // ── Tutor Approval ──
-router.patch('/tutors/:id/approve', async (req, res) => {
+const handleTutorApprove = async (req, res) => {
   try {
     const { action } = req.body;
     const status = action === 'approve' ? 'verified' : 'rejected';
-    const user = await User.findByIdAndUpdate(req.params.id, { status, verified: action === 'approve' }, { new: true });
+    const user = await User.findByIdAndUpdate(req.params.id, { status, verified: action === 'approve' });
     if (!user) return res.status(404).json({ message: 'Tutor not found' });
     getIo(req)?.emit('userUpdated', user);
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
-});
+};
+router.patch('/tutors/:id/approve', handleTutorApprove);
+router.put('/tutors/:id/approve', handleTutorApprove);
 
 // ── Users (Students & Tutors) ──
 router.get('/users', async (req, res) => {
   try {
     const { role } = req.query;
     const filter = role ? { role } : {};
-    const users = await User.find(filter).sort({ createdAt: -1 });
+    const users = await User.find(filter);
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -149,8 +162,7 @@ router.post('/users', async (req, res) => {
     if (userData.password) {
       userData.password = await bcrypt.hash(userData.password, 10);
     }
-    const user = new User(userData);
-    await user.save();
+    const user = await User.create(userData);
     getIo(req)?.emit('userCreated', user);
     res.status(201).json(user);
   } catch (err) {
@@ -160,7 +172,7 @@ router.post('/users', async (req, res) => {
 
 router.put('/users/:id', async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const user = await User.findByIdAndUpdate(req.params.id, req.body);
     getIo(req)?.emit('userUpdated', user);
     res.json(user);
   } catch (err) {
@@ -170,7 +182,7 @@ router.put('/users/:id', async (req, res) => {
 
 router.delete('/users/:id', async (req, res) => {
   try {
-    await User.findByIdAndDelete(req.params.id);
+    await execute('DELETE FROM users WHERE id = ?', [req.params.id]);
     getIo(req)?.emit('userDeleted', req.params.id);
     res.json({ message: 'User deleted' });
   } catch (err) {
@@ -181,7 +193,7 @@ router.delete('/users/:id', async (req, res) => {
 // ── Courses ──
 router.get('/courses', async (req, res) => {
   try {
-    const courses = await Course.find().populate('tutor', 'name email').sort({ createdAt: -1 });
+    const courses = await Course.find();
     res.json(courses);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -190,8 +202,7 @@ router.get('/courses', async (req, res) => {
 
 router.post('/courses', async (req, res) => {
   try {
-    const course = new Course(req.body);
-    await course.save();
+    const course = await Course.create(req.body);
     getIo(req)?.emit('courseCreated', course);
     res.status(201).json(course);
   } catch (err) {
@@ -201,9 +212,16 @@ router.post('/courses', async (req, res) => {
 
 router.put('/courses/:id', async (req, res) => {
   try {
-    const course = await Course.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('tutor', 'name email');
-    getIo(req)?.emit('courseUpdated', course);
-    res.json(course);
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+    const { title, description, subject, classLevel, price, duration, mode, status, thumbnail } = req.body;
+    await execute(
+      'UPDATE courses SET title = COALESCE(?, title), description = COALESCE(?, description), subject = COALESCE(?, subject), classLevel = COALESCE(?, classLevel), price = COALESCE(?, price), duration = COALESCE(?, duration), mode = COALESCE(?, mode), status = COALESCE(?, status), thumbnail = COALESCE(?, thumbnail) WHERE id = ?',
+      [title || null, description || null, subject || null, classLevel || null, price || null, duration || null, mode || null, status || null, thumbnail || null, req.params.id]
+    );
+    const updated = await Course.findById(req.params.id);
+    getIo(req)?.emit('courseUpdated', updated);
+    res.json(updated);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -211,7 +229,7 @@ router.put('/courses/:id', async (req, res) => {
 
 router.delete('/courses/:id', async (req, res) => {
   try {
-    await Course.findByIdAndDelete(req.params.id);
+    await execute('DELETE FROM courses WHERE id = ?', [req.params.id]);
     getIo(req)?.emit('courseDeleted', req.params.id);
     res.json({ message: 'Course deleted' });
   } catch (err) {
@@ -222,16 +240,8 @@ router.delete('/courses/:id', async (req, res) => {
 // ── Bookings & Consultation Callbacks ──
 router.get('/bookings', async (req, res) => {
   try {
-    let bookings = [];
-    let callbacks = [];
-
-    if (mongoose.connection.readyState === 1) {
-      bookings = await Booking.find().populate('student tutor course').sort({ createdAt: -1 });
-      callbacks = await CallbackRequest.find().populate('tutor', 'name avatar subjects rating location headline phone email mode experience').sort({ createdAt: -1 });
-    } else {
-      const storeBookings = await getBookings();
-      bookings = storeBookings || [];
-    }
+    const bookings = await Booking.find();
+    const callbacks = await CallbackRequest.find();
 
     const formattedCallbacks = (callbacks || []).map(c => ({
       _id: c._id,
@@ -261,10 +271,7 @@ router.get('/bookings', async (req, res) => {
       isCallback: true,
     }));
 
-    const combined = [
-      ...bookings.map(b => (b && typeof b.toObject === 'function') ? b.toObject() : b),
-      ...formattedCallbacks
-    ];
+    const combined = [...bookings, ...formattedCallbacks];
     combined.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
     res.json(combined);
@@ -275,52 +282,47 @@ router.get('/bookings', async (req, res) => {
 
 router.put('/bookings/:id', async (req, res) => {
   try {
-    if (mongoose.connection.readyState === 1) {
-      let booking = await Booking.findById(req.params.id);
-      if (booking) {
-        booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('student tutor course');
-        getIo(req)?.emit('bookingUpdated', booking);
-        return res.json(booking);
-      }
+    let booking = await Booking.findById(req.params.id);
+    if (booking) {
+      booking = await Booking.findByIdAndUpdate(req.params.id, req.body);
+      getIo(req)?.emit('bookingUpdated', booking);
+      return res.json(booking);
+    }
 
-      let callback = await CallbackRequest.findById(req.params.id);
-      if (callback) {
-        const updateData = {};
-        if (req.body.status) updateData.status = req.body.status;
-        if (req.body.tutor) updateData.tutor = req.body.tutor;
+    let callback = await CallbackRequest.findById(req.params.id);
+    if (callback) {
+      const updateData = {};
+      if (req.body.status) updateData.status = req.body.status;
+      if (req.body.tutor) updateData.tutor = req.body.tutor;
 
-        callback = await CallbackRequest.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('tutor', 'name avatar subjects rating location headline phone email mode experience');
-        const formatted = {
-          _id: callback._id,
-          id: callback._id.toString(),
-          requestType: 'consultation',
-          studentSnapshot: {
-            name: callback.name,
-            phone: callback.phone,
-            role: callback.role || 'student',
-            classLevel: callback.classLevel,
-            grade: callback.classLevel,
-            subject: callback.subject,
-            location: callback.location || 'Lucknow',
-            mode: callback.mode || 'Home',
-          },
-          subject: callback.subject,
+      callback = await CallbackRequest.findByIdAndUpdate(req.params.id, updateData);
+      const formatted = {
+        _id: callback.id,
+        id: String(callback.id),
+        requestType: 'consultation',
+        studentSnapshot: {
+          name: callback.name,
+          phone: callback.phone,
+          role: callback.role || 'student',
+          classLevel: callback.classLevel,
           grade: callback.classLevel,
+          subject: callback.subject,
           location: callback.location || 'Lucknow',
-          examType: 'Free Consultation',
           mode: callback.mode || 'Home',
-          tutor: callback.tutor,
-          status: callback.status,
-          createdAt: callback.createdAt,
-          updatedAt: callback.updatedAt,
-          isCallback: true,
-        };
-        getIo(req)?.emit('bookingUpdated', formatted);
-        return res.json(formatted);
-      }
-    } else {
-      const updated = await updateBookingStatus(req.params.id, req.body.status);
-      if (updated) return res.json(updated);
+        },
+        subject: callback.subject,
+        grade: callback.classLevel,
+        location: callback.location || 'Lucknow',
+        examType: 'Free Consultation',
+        mode: callback.mode || 'Home',
+        tutor: callback.tutor,
+        status: callback.status,
+        createdAt: callback.createdAt,
+        updatedAt: callback.updatedAt,
+        isCallback: true,
+      };
+      getIo(req)?.emit('bookingUpdated', formatted);
+      return res.json(formatted);
     }
 
     res.status(404).json({ message: 'Booking or Callback request not found' });
@@ -332,7 +334,7 @@ router.put('/bookings/:id', async (req, res) => {
 // ── Callbacks Specific Endpoints ──
 router.get('/callbacks', async (req, res) => {
   try {
-    const callbacks = await CallbackRequest.find().sort({ createdAt: -1 });
+    const callbacks = await CallbackRequest.find();
     res.json(callbacks);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -341,7 +343,7 @@ router.get('/callbacks', async (req, res) => {
 
 router.put('/callbacks/:id', async (req, res) => {
   try {
-    const callback = await CallbackRequest.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const callback = await CallbackRequest.findByIdAndUpdate(req.params.id, req.body);
     getIo(req)?.emit('callbackUpdated', callback);
     res.json(callback);
   } catch (err) {

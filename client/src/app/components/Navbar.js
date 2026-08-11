@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, ChevronDown, Globe, Search, User, LogOut, LayoutDashboard, Video, Home, Menu } from 'lucide-react';
+import { BookOpen, ChevronDown, Globe, Search, User, LogOut, LayoutDashboard, Video, Home, Menu, X } from 'lucide-react';
 import RegisterModal from './RegisterModal';
 
 export default function Navbar({ onOpenHowItWorks }) {
@@ -32,6 +32,8 @@ export default function Navbar({ onOpenHowItWorks }) {
   const subjectsRef = useRef(null);
   const langRef = useRef(null);
   const userMenuRef = useRef(null);
+  const mobileMenuRef = useRef(null);
+  const mobileMenuBtnRef = useRef(null);
 
   // Sync auth status
   const checkAuth = () => {
@@ -60,7 +62,32 @@ export default function Navbar({ onOpenHowItWorks }) {
     };
   }, []);
 
-  // Close dropdowns when clicking outside
+  // Recurring timer to show register modal until user logs in
+  useEffect(() => {
+    if (user) return;
+
+    // Show initial timer popup after 12s, then repeat every 25s if user remains logged out
+    const timeout = setTimeout(() => {
+      const storedToken = localStorage.getItem('tutorconnect-token');
+      if (!storedToken) {
+        setIsRegisterOpen(true);
+      }
+    }, 12000);
+
+    const interval = setInterval(() => {
+      const storedToken = localStorage.getItem('tutorconnect-token');
+      if (!storedToken) {
+        setIsRegisterOpen(true);
+      }
+    }, 25000);
+
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [user]);
+
+  // Close dropdowns and mobile menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (findTutorsRef.current && !findTutorsRef.current.contains(event.target)) {
@@ -75,9 +102,22 @@ export default function Navbar({ onOpenHowItWorks }) {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
         setUserMenuOpen(false);
       }
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target) &&
+        mobileMenuBtnRef.current &&
+        !mobileMenuBtnRef.current.contains(event.target)
+      ) {
+        setMobileMenuOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -234,17 +274,21 @@ export default function Navbar({ onOpenHowItWorks }) {
 
           {/* Mobile Menu Button */}
           <button
+            ref={mobileMenuBtnRef}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 focus:outline-none md:hidden"
           >
-            <Menu size={18} />
+            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
       </div>
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="absolute left-4 right-4 top-[72px] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xl md:hidden animate-in fade-in slide-in-from-top-2 duration-150">
+        <div
+          ref={mobileMenuRef}
+          className="absolute left-4 right-4 top-[72px] z-50 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xl md:hidden animate-in fade-in slide-in-from-top-2 duration-150"
+        >
           <div className="flex flex-col gap-4">
             <Link href="/about" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>About</Link>
             <Link href="/blog" className="text-sm font-medium text-slate-700 hover:text-[#056852]" onClick={() => setMobileMenuOpen(false)}>Blog</Link>

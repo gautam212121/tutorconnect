@@ -120,7 +120,7 @@ export default function DashboardLayout({ children }) {
             <BookOpen size={16} strokeWidth={2.5} />
           </div>
           <span className="text-[15px] font-extrabold tracking-tight text-slate-900">
-            Tutor<span className="text-[#056852]">Connect</span>
+            Verified<span className="text-[#056852]">Tutors</span>
           </span>
         </div>
 
@@ -199,7 +199,7 @@ export default function DashboardLayout({ children }) {
             <BookOpen size={14} />
           </div>
           <span className="text-[14px] font-extrabold text-slate-900">
-            Tutor<span className="text-[#056852]">Connect</span>
+            Verified<span className="text-[#056852]">Tutors</span>
           </span>
         </div>
         <div className="flex items-center gap-2">

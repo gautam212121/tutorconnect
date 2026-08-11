@@ -6,12 +6,31 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import jwt from 'jsonwebtoken';
+import Category from '../src/models/Category.js';
 
 const createAppModule = async () => {
   const { createApp } = await import('../src/app.js');
   return createApp;
 };
 const closeServer = (server) => new Promise((resolve) => server.close(resolve));
+
+test('category image survives the no-MySQL fallback path', async () => {
+  const image = 'data:image/jpeg;base64,AAAA';
+  const created = await Category.create({
+    name: `FallbackCategory-${Date.now()}`,
+    image,
+    description: 'Demo',
+    priority: 'High',
+    status: 'active',
+    type: 'Academics',
+    curriculum: [{ title: 'Algebra' }],
+  });
+
+  assert.equal(created.image, image);
+  assert.equal(created.name, created.name);
+  const found = await Category.findOne({ id: created.id });
+  assert.equal(found.image, image);
+});
 
 test('health endpoint responds with service metadata', async () => {
   const createApp = await createAppModule();
@@ -198,7 +217,7 @@ test('bookings persist across module reloads', async () => {
         },
         body: JSON.stringify({
           studentId: registrationBody.user.id,
-          tutorId: '64f000000000000000000001',
+          tutorId: '2',
           subject: 'English',
           grade: 'Class 10',
           examType: 'Board Prep',

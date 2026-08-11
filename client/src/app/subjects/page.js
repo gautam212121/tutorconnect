@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import {
   BookOpen, Users, Star, Clock, Sparkles, Check, ArrowRight, Loader2,
-  ChevronRight, ArrowUpRight
+  ChevronRight, ArrowUpRight, GraduationCap
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -291,12 +291,12 @@ export default function SubjectsDirectoryPage() {
                 <div className="w-8 h-8 rounded-xl bg-[#056852] flex items-center justify-center">
                   <GraduationCap size={16} className="text-white" />
                 </div>
-                <span className="text-base font-extrabold text-white">Tutor<span className="text-emerald-400">Connect</span></span>
+                <span className="text-base font-extrabold text-white">Verified<span className="text-emerald-400">Tutors</span></span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Connecting students with the right tutors for better learning and brighter futures.
               </p>
-              <p className="text-[11px] text-slate-500">© {new Date().getFullYear()} TutorConnect. All Rights Reserved.</p>
+              <p className="text-[11px] text-slate-500">© {new Date().getFullYear()} VerifiedTutors. All Rights Reserved.</p>
             </div>
             {['For Students', 'For Tutors', 'Company'].map((title, idx) => (
               <div key={idx}>

@@ -1,10 +1,11 @@
 import express from 'express';
-import { SubscriptionPlan } from '../models/SubscriptionPlan.js';
-import { Subscription } from '../models/Subscription.js';
-import { User } from '../models/User.js';
+import SubscriptionPlan from '../models/SubscriptionPlan.js';
+import Subscription from '../models/Subscription.js';
+import User from '../models/User.js';
 import { verifyToken, requireAnyRole, requireRole } from '../middleware/auth.js';
 import { createNotification, logActivity } from '../services/notificationService.js';
 import Razorpay from 'razorpay';
+import { execute } from '../config/db.js';
 
 const router = express.Router();
 const getIo = (req) => req.app.get('io');
@@ -17,7 +18,7 @@ const getRazorpay = () => new Razorpay({
 // ── Get all active subscription plans (public) ────────────────────────────────
 router.get('/plans', async (_req, res) => {
   try {
-    const plans = await SubscriptionPlan.find({ status: 'active' }).sort({ sortOrder: 1 });
+    const plans = await SubscriptionPlan.find({ status: 'active' });
     res.json(plans);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -27,8 +28,8 @@ router.get('/plans', async (_req, res) => {
 // ── Admin: CRUD subscription plans ────────────────────────────────────────────
 router.post('/plans', verifyToken, requireRole('admin'), async (req, res) => {
   try {
-    const plan = new SubscriptionPlan(req.body);
-    await plan.save();
+    const inserted = await SubscriptionPlan.insertMany([req.body]);
+    const plan = inserted[0];
     getIo(req)?.emit('subscription:planCreated', plan);
     res.status(201).json(plan);
   } catch (err) {
@@ -38,10 +39,16 @@ router.post('/plans', verifyToken, requireRole('admin'), async (req, res) => {
 
 router.put('/plans/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
-    const plan = await SubscriptionPlan.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const plan = await SubscriptionPlan.findById(req.params.id);
     if (!plan) return res.status(404).json({ message: 'Plan not found' });
-    getIo(req)?.emit('subscription:planUpdated', plan);
-    res.json(plan);
+    const { name, price, duration, durationLabel, leadLimit, leadLimitLabel, commissionRate, searchBoost, priorityBadge, premiumSupport, features, status, sortOrder } = req.body;
+    await execute(
+      'UPDATE subscription_plans SET name = COALESCE(?, name), price = COALESCE(?, price), duration = COALESCE(?, duration), durationLabel = COALESCE(?, durationLabel), leadLimit = COALESCE(?, leadLimit), leadLimitLabel = COALESCE(?, leadLimitLabel), commissionRate = COALESCE(?, commissionRate), searchBoost = COALESCE(?, searchBoost), priorityBadge = COALESCE(?, priorityBadge), premiumSupport = COALESCE(?, premiumSupport), features = COALESCE(?, features), status = COALESCE(?, status), sortOrder = COALESCE(?, sortOrder) WHERE id = ?',
+      [name || null, price || null, duration || null, durationLabel || null, leadLimit || null, leadLimitLabel || null, commissionRate || null, searchBoost != null ? (searchBoost ? 1 : 0) : null, priorityBadge != null ? (priorityBadge ? 1 : 0) : null, premiumSupport != null ? (premiumSupport ? 1 : 0) : null, features ? JSON.stringify(features) : null, status || null, sortOrder || null, req.params.id]
+    );
+    const updated = await SubscriptionPlan.findById(req.params.id);
+    getIo(req)?.emit('subscription:planUpdated', updated);
+    res.json(updated);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -49,7 +56,7 @@ router.put('/plans/:id', verifyToken, requireRole('admin'), async (req, res) => 
 
 router.delete('/plans/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
-    await SubscriptionPlan.findByIdAndUpdate(req.params.id, { status: 'archived' });
+    await execute('UPDATE subscription_plans SET status = "archived" WHERE id = ?', [req.params.id]);
     res.json({ message: 'Plan archived' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -62,8 +69,10 @@ router.get('/my', verifyToken, requireAnyRole(['tutor']), async (req, res) => {
     const subscription = await Subscription.findOne({
       tutor: req.user.id,
       status: 'active',
-      endDate: { $gt: new Date() },
-    }).populate('plan');
+    });
+    if (subscription) {
+      subscription.plan = await SubscriptionPlan.findById(subscription.plan);
+    }
 
     res.json(subscription || null);
   } catch (err) {
@@ -80,33 +89,29 @@ router.post('/subscribe', verifyToken, requireAnyRole(['tutor']), async (req, re
       return res.status(404).json({ message: 'Plan not found or inactive' });
     }
 
-    // Check if tutor already has active subscription
     const existing = await Subscription.findOne({
       tutor: req.user.id,
       status: 'active',
-      endDate: { $gt: new Date() },
     });
     if (existing) {
       return res.status(400).json({ message: 'You already have an active subscription' });
     }
 
-    // Create Razorpay order
     const razorpay = getRazorpay();
     const order = await razorpay.orders.create({
       amount: plan.price * 100,
       currency: 'INR',
       receipt: `sub_${req.user.id}_${Date.now()}`,
-      notes: { planId: plan._id.toString(), tutorId: req.user.id },
+      notes: { planId: String(plan.id), tutorId: String(req.user.id) },
     });
 
-    // Create pending subscription
     const startDate = new Date();
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + plan.duration);
 
-    const subscription = new Subscription({
+    const subscription = await Subscription.create({
       tutor: req.user.id,
-      plan: plan._id,
+      plan: plan.id,
       startDate,
       endDate,
       amount: plan.price,
@@ -115,8 +120,6 @@ router.post('/subscribe', verifyToken, requireAnyRole(['tutor']), async (req, re
       status: 'pending',
       razorpayOrderId: order.id,
     });
-
-    await subscription.save();
 
     res.json({
       subscription,
@@ -136,30 +139,30 @@ router.post('/subscribe', verifyToken, requireAnyRole(['tutor']), async (req, re
 router.post('/verify-payment', verifyToken, requireAnyRole(['tutor']), async (req, res) => {
   try {
     const { subscriptionId, razorpayPaymentId, razorpaySignature } = req.body;
-    const subscription = await Subscription.findById(subscriptionId).populate('plan');
+    const subscription = await Subscription.findById(subscriptionId);
     if (!subscription) return res.status(404).json({ message: 'Subscription not found' });
-    if (subscription.tutor.toString() !== req.user.id) {
+    if (String(subscription.tutor) !== String(req.user.id)) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    // Verify signature (simplified — production should use crypto)
-    subscription.status = 'active';
-    subscription.razorpayPaymentId = razorpayPaymentId;
-    await subscription.save();
+    const updated = await Subscription.findByIdAndUpdate(subscriptionId, {
+      status: 'active',
+      razorpayPaymentId,
+    });
+    updated.plan = await SubscriptionPlan.findById(updated.plan);
 
-    // Update tutor
     await User.findByIdAndUpdate(req.user.id, {
-      activeSubscription: subscription._id,
-      currentCommissionRate: subscription.commissionRate,
+      activeSubscription: updated.id,
+      currentCommissionRate: updated.commissionRate,
     });
 
     const io = getIo(req);
-    io?.emit('subscription:activated', { tutorId: req.user.id, subscription });
+    io?.emit('subscription:activated', { tutorId: req.user.id, subscription: updated });
 
     await createNotification(io, {
       recipientId: req.user.id,
       title: 'Subscription Activated',
-      message: `Your ${subscription.plan.name} plan is now active!`,
+      message: `Your ${updated.plan ? updated.plan.name : ''} plan is now active!`,
       type: 'subscription',
       icon: '🎉',
     });
@@ -168,12 +171,12 @@ router.post('/verify-payment', verifyToken, requireAnyRole(['tutor']), async (re
       userId: req.user.id,
       action: 'Subscription activated',
       category: 'subscription',
-      details: `${subscription.plan.name} plan activated`,
-      metadata: { subscriptionId: subscription._id },
+      details: `${updated.plan ? updated.plan.name : ''} plan activated`,
+      metadata: { subscriptionId: updated.id },
       req,
     });
 
-    res.json({ message: 'Subscription activated successfully', subscription });
+    res.json({ message: 'Subscription activated successfully', subscription: updated });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -191,17 +194,18 @@ router.post('/cancel', verifyToken, requireAnyRole(['tutor']), async (req, res) 
       return res.status(404).json({ message: 'No active subscription found' });
     }
 
-    subscription.status = 'cancelled';
-    subscription.cancelledAt = new Date();
-    subscription.cancelReason = reason;
-    await subscription.save();
+    const updated = await Subscription.findByIdAndUpdate(subscription.id, {
+      status: 'cancelled',
+      cancelledAt: new Date(),
+      cancelReason: reason,
+    });
 
     await User.findByIdAndUpdate(req.user.id, { activeSubscription: null });
 
     const io = getIo(req);
     io?.emit('subscription:cancelled', { tutorId: req.user.id });
 
-    res.json({ message: 'Subscription cancelled', subscription });
+    res.json({ message: 'Subscription cancelled', subscription: updated });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -214,15 +218,14 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
     const filter = {};
     if (status) filter.status = status;
 
-    const subscriptions = await Subscription.find(filter)
-      .populate('tutor', 'name email avatar')
-      .populate('plan', 'name price duration')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+    const subscriptions = await Subscription.find(filter);
+    for (const sub of subscriptions) {
+      sub.tutor = await User.findById(sub.tutor);
+      sub.plan = await SubscriptionPlan.findById(sub.plan);
+    }
 
-    const total = await Subscription.countDocuments(filter);
-    const activeCount = await Subscription.countDocuments({ status: 'active' });
+    const total = subscriptions.length;
+    const activeCount = subscriptions.filter(s => s.status === 'active').length;
 
     res.json({ subscriptions, total, activeCount, page: parseInt(page), pages: Math.ceil(total / limit) });
   } catch (err) {

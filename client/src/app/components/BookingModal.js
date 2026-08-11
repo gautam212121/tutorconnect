@@ -52,10 +52,6 @@ export default function BookingModal({ tutor, onClose }) {
                 <span>Demo session</span>
                 <span className="font-semibold text-slate-900">₹{tutor.price || tutor.rate || '0'}</span>
               </div>
-              <div className="mt-2 flex items-center justify-between text-sm text-slate-600">
-                <span>Booking fee</span>
-                <span className="font-semibold text-slate-900">₹{Math.round((tutor.price || tutor.rate || 0) * 0.1)}</span>
-              </div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Preferred time</label>
@@ -75,14 +71,8 @@ export default function BookingModal({ tutor, onClose }) {
                 placeholder="Share your goal and preferred learning style."
               />
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300" />
-                <span>Pay demo booking fee now</span>
-              </label>
-            </div>
             <button disabled={loading} className="w-full rounded-full bg-teal-600 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70">
-              {loading ? 'Submitting...' : 'Pay & confirm demo'}
+              {loading ? 'Submitting...' : 'Confirm demo'}
             </button>
           </form>
         )}

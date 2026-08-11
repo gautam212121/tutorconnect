@@ -15,6 +15,28 @@ const CATEGORY_COLORS = [
   '#056852', '#0ea5e9', '#8b5cf6', '#f59e0b', '#f97316', '#ec4899', '#10b981', '#3b82f6'
 ];
 
+const compressImage = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxWidth = 900;
+      const scale = Math.min(1, maxWidth / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const compressed = canvas.toDataURL('image/jpeg', 0.72);
+      resolve(compressed);
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = reader.result;
+  };
+  reader.onerror = () => reject(new Error('File read failed'));
+  reader.readAsDataURL(file);
+});
+
 // Simple Toast Component
 const Toast = ({ message, type, onClose }) => {
   if (!message) return null;
@@ -42,7 +64,7 @@ export default function CoursesAdminPage() {
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
-  const [currentCategory, setCurrentCategory] = useState({ name: '', image: '', description: '', priority: 'Medium', status: 'active', type: 'Academics' });
+  const [currentCategory, setCurrentCategory] = useState({ name: '', image: '', imageFile: null, description: '', priority: 'Medium', status: 'active', type: 'Academics' });
   
   const [deleteConfirm, setDeleteConfirm] = useState(null); // id to delete
   
@@ -95,9 +117,9 @@ export default function CoursesAdminPage() {
   const handleOpenModal = (mode, category = null) => {
     setModalMode(mode);
     if (mode === 'edit' && category) {
-      setCurrentCategory(category);
+      setCurrentCategory({ ...category, imageFile: null });
     } else {
-      setCurrentCategory({ name: '', image: '', description: '', priority: 'Medium', status: 'active', type: 'Academics' });
+      setCurrentCategory({ name: '', image: '', imageFile: null, description: '', priority: 'Medium', status: 'active', type: 'Academics' });
     }
     setIsModalOpen(true);
   };
@@ -105,13 +127,37 @@ export default function CoursesAdminPage() {
   const handleSaveCategory = async (e) => {
     e.preventDefault();
     try {
+      const formData = new FormData();
+      formData.append('name', currentCategory.name || '');
+      formData.append('description', currentCategory.description || '');
+      formData.append('priority', currentCategory.priority || 'Medium');
+      formData.append('status', currentCategory.status || 'active');
+      formData.append('type', currentCategory.type || 'Academics');
+
+      if (currentCategory.curriculum) {
+        formData.append('curriculum', JSON.stringify(currentCategory.curriculum));
+      }
+
+      if (currentCategory.imageFile) {
+        formData.append('image', currentCategory.imageFile);
+      } else if (currentCategory.image && currentCategory.image.startsWith('http')) {
+        formData.append('image', currentCategory.image);
+      }
+
+      let savedCategory;
       if (modalMode === 'add') {
-        await adminApi.createCategory(currentCategory);
+        savedCategory = await adminApi.createCategoryMultipart(formData);
+        setCategories(prev => [savedCategory, ...prev]);
         showToast('Category created successfully');
       } else {
-        await adminApi.updateCategory(currentCategory._id, currentCategory);
+        savedCategory = await adminApi.updateCategoryMultipart(currentCategory._id, formData);
+        setCategories(prev => prev.map(cat => {
+          const matchId = cat._id === savedCategory._id || cat.id === savedCategory.id;
+          return matchId ? savedCategory : cat;
+        }));
         showToast('Category updated successfully');
       }
+      await fetchCategories();
       setIsModalOpen(false);
     } catch (error) {
       showToast(error.response?.data?.message || 'Failed to save category', 'error');
@@ -298,12 +344,17 @@ export default function CoursesAdminPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => setCurrentCategory({ ...currentCategory, image: reader.result });
-                        reader.readAsDataURL(file);
+                        try {
+                          const compressed = await compressImage(file);
+                          setCurrentCategory({ ...currentCategory, image: compressed, imageFile: file });
+                        } catch {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setCurrentCategory({ ...currentCategory, image: reader.result, imageFile: file });
+                          reader.readAsDataURL(file);
+                        }
                       }
                     }}
                     className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#056852] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#045241] cursor-pointer focus:outline-none"

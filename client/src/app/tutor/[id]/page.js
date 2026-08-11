@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../../components/Navbar';
+import { getImageUrl } from '../../../lib/image';
 import {
   Clock, MapPin, GraduationCap, Star, Check, CheckCircle2, ChevronRight,
   Share2, ShieldAlert, Award, Calendar, BookOpen, MessageSquare, Loader2,
@@ -110,7 +111,7 @@ export default function TutorProfilePage() {
               <div className="flex flex-col items-center shrink-0">
                 <div className="relative w-32 h-32 rounded-2xl bg-white p-1 border-2 border-emerald-500/20 shadow-md">
                   {tutor.image ? (
-                    <img src={tutor.image} alt={tutor.name} className="w-full h-full rounded-xl object-cover" />
+                    <img src={getImageUrl(tutor.image)} alt={tutor.name} className="w-full h-full rounded-xl object-cover" onError={(e) => { e.currentTarget.src = '/placeholder-image.png'; }} />
                   ) : (
                     <div className="w-full h-full rounded-xl bg-gradient-to-br from-emerald-400 to-[#056852] flex items-center justify-center text-white text-4xl font-extrabold shadow-sm">
                       {tutor.name?.charAt(0).toUpperCase()}

@@ -32,10 +32,10 @@ export default function SettingsAdminPage() {
   const [saved, setSaved] = useState(false);
 
   const [settings, setSettings] = useState({
-    siteName: 'TutorConnect',
+    siteName: 'VerifiedTutors',
     siteTagline: 'Learn from the Best Tutors Near You',
-    siteUrl: 'https://tutorconnect.in',
-    supportEmail: 'support@tutorconnect.in',
+    siteUrl: 'https://verifiedtutors.in',
+    supportEmail: 'support@verifiedtutors.in',
     phoneSupport: '+91 9876543210',
     commissionRate: 20,
     gstRate: 18,
