@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Send, Bell, Mail, Smartphone, Megaphone, Users, ChevronRight, CheckCircle2 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 const RECENT = [
   { id: 'n1', type: 'push', title: 'New Feature: Live Classes!', message: 'Book a live 1-on-1 session today.', sent: '5,200 users', date: '18 May 2026', status: 'delivered' },

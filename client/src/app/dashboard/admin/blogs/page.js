@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Calendar, User, Eye, X, Loader2 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const CATEGORIES = ['Parents Guide', 'Study Tips', 'Tutor Strategies', 'Exam Prep'];
 
 export default function BlogsAdminPage() {

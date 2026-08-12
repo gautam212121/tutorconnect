@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export const apiUrl = (path) => `${BASE_URL}${path}`;
 

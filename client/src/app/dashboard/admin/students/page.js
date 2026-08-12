@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Eye, Ban, Trash2, Shield, Award } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 const MOCK_STUDENTS = [];
 

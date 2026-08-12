@@ -65,7 +65,7 @@ const createApp = () => {
   // ── Security & Middleware ────────────────────────────────────────────────────
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://51.21.255.194:3000',
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
     credentials: true,
   }));
   app.use(morgan('dev'));
@@ -449,7 +449,7 @@ const createApp = () => {
                 <p>Your account has been created successfully.</p>
                 <p><strong>Login ID (Email):</strong> ${cleanEmail}</p>
                 <p><strong>Account Type:</strong> ${user.role.toUpperCase()}</p>
-                <p>You can sign in to your dashboard at <a href="${process.env.CLIENT_URL || 'http://51.21.255.194:3000'}">TutorConnect</a>.</p>
+                <p>You can sign in to your dashboard at <a href="${process.env.CLIENT_URL || 'http://localhost:3000'}">TutorConnect</a>.</p>
               </div>
             `,
           });
@@ -539,7 +539,7 @@ const createApp = () => {
                 <p>Your student account has been created successfully.</p>
                 <p><strong>Email:</strong> ${cleanEmail}</p>
                 <p><strong>Password:</strong> ${tempPassword}</p>
-                <p>You can sign in at <a href="${process.env.FRONTEND_URL || 'http://51.21.255.194:3000'}">TutorConnect</a>.</p>
+                <p>You can sign in at <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}">TutorConnect</a>.</p>
               </div>
             `,
           });

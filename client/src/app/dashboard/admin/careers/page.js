@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Briefcase, CheckCircle2, XCircle, Clock, Trash2, Search, Eye, FileText, ChevronRight, Download, MapPin, GraduationCap, Calendar, BookOpen, Star } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://51.21.255.194:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export default function AdminCareersPage() {
   const [applications, setApplications] = useState([]);
