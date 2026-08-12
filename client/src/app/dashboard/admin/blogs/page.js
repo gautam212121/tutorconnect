@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Calendar, User, Eye, X, Loader2 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 const CATEGORIES = ['Parents Guide', 'Study Tips', 'Tutor Strategies', 'Exam Prep'];
 
 export default function BlogsAdminPage() {
@@ -27,7 +27,7 @@ export default function BlogsAdminPage() {
   });
 
   const getHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('tutorconnect-token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('verifiedtutor-token') : null;
     return {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {})

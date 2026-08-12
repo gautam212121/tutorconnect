@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Mail, Calendar, Trash2, ArrowUpDown } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
 export default function NewsletterAdminPage() {
   const [subscribers, setSubscribers] = useState([]);
@@ -11,7 +11,7 @@ export default function NewsletterAdminPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('tutorconnect-token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('verifiedtutor-token') : null;
 
     fetch(`${API}/api/v1/admin/newsletter`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},

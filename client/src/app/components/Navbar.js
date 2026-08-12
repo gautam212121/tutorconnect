@@ -38,7 +38,7 @@ export default function Navbar({ onOpenHowItWorks }) {
   // Sync auth status
   const checkAuth = () => {
     try {
-      const storedUser = localStorage.getItem('tutorconnect-user');
+      const storedUser = localStorage.getItem('verifiedtutor-user');
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       } else {
@@ -68,14 +68,14 @@ export default function Navbar({ onOpenHowItWorks }) {
 
     // Show initial timer popup after 12s, then repeat every 25s if user remains logged out
     const timeout = setTimeout(() => {
-      const storedToken = localStorage.getItem('tutorconnect-token');
+      const storedToken = localStorage.getItem('verifiedtutor-token');
       if (!storedToken) {
         setIsRegisterOpen(true);
       }
     }, 12000);
 
     const interval = setInterval(() => {
-      const storedToken = localStorage.getItem('tutorconnect-token');
+      const storedToken = localStorage.getItem('verifiedtutor-token');
       if (!storedToken) {
         setIsRegisterOpen(true);
       }
@@ -121,8 +121,8 @@ export default function Navbar({ onOpenHowItWorks }) {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('tutorconnect-token');
-    localStorage.removeItem('tutorconnect-user');
+    localStorage.removeItem('verifiedtutor-token');
+    localStorage.removeItem('verifiedtutor-user');
     setUser(null);
     setUserMenuOpen(false);
     window.dispatchEvent(new Event('auth-change'));

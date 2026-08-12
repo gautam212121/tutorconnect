@@ -6,7 +6,7 @@ import { adminApi } from '../../../../lib/api';
 import { useSocket } from '../../../../hooks/useSocket';
 import { getImageUrl } from '../../../../lib/image';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
 const MOCK_TUTORS = [];
 
@@ -352,7 +352,7 @@ export default function TutorsAdminPage() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="py-10 text-center text-sm text-slate-400">
-                    {typeof window !== 'undefined' && !localStorage.getItem('tutorconnect-token')
+                    {typeof window !== 'undefined' && !localStorage.getItem('verifiedtutor-token')
                       ? 'Sign in as an admin to load tutor records.'
                       : 'No tutors found matching your filters'}
                   </td>

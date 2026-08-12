@@ -114,7 +114,7 @@ const BLOG_POSTS = [
   }
 ];
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 const CATEGORIES = ['All', 'Parents Guide', 'Study Tips', 'Tutor Strategies', 'Exam Prep'];
 
 export default function BlogPage() {

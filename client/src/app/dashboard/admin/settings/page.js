@@ -34,9 +34,9 @@ export default function SettingsAdminPage() {
   const [settings, setSettings] = useState({
     siteName: 'VerifiedTutors',
     siteTagline: 'Learn from the Best Tutors Near You',
-    siteUrl: 'https://verifiedtutors.in',
-    supportEmail: 'support@verifiedtutors.in',
-    phoneSupport: '+91 9876543210',
+    siteUrl: 'https://verifiedtutor.in',
+    supportEmail: 'support@verifiedtutor.in',
+    phoneSupport: '+91 90441 95981',
     commissionRate: 20,
     gstRate: 18,
     minPayout: 500,

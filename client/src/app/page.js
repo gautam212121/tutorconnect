@@ -14,7 +14,7 @@ import {
   RefreshCw, BadgeCheck, Headphones, DollarSign, Calendar, X,
 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
 // Subject icons mapping
 const SUBJECT_ICONS = {
@@ -469,7 +469,7 @@ export default function HomePage() {
       {/* ═══════════════════════ HOW IT WORKS ═══════════════════════ */}
       <section className="py-5 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-slate-900">How TutorConnect Works</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-slate-900">How VerifiedTutor Works</h2>
 
           <div className="mt-0 grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
             {[

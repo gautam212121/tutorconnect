@@ -11,7 +11,7 @@ import {
   Calendar, BadgeCheck, Mail, Globe, Sparkles
 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
 const CLASSES_LIST = [
   'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',

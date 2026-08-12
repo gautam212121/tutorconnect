@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-const getJwtSecret = () => process.env.JWT_SECRET || 'tutorconnect-dev-secret';
-
+const getJwtSecret = () => process.env.JWT_SECRET || 'verifiedtutor-dev-secret';
 const getTokenFromHeader = (req) => {
   const authHeader = req.headers.authorization || req.headers.Authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;

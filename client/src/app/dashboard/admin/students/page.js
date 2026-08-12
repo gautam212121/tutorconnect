@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Eye, Ban, Trash2, Shield, Award } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
 const MOCK_STUDENTS = [];
 
@@ -33,7 +33,7 @@ export default function StudentsAdminPage() {
   const [selectedTab, setSelectedTab] = useState('all');
 
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('tutorconnect-token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('verifiedtutor-token') : null;
 
     fetch(`${API}/api/v1/admin/users?role=student`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},

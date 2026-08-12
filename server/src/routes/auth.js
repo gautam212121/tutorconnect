@@ -9,8 +9,7 @@ import { execute } from '../config/db.js';
 
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const getJwtSecret = () => process.env.JWT_SECRET || 'tutorconnect-dev-secret';
-
+const getJwtSecret = () => process.env.JWT_SECRET || 'verifiedtutor-dev-secret';
 // ── Email transporter ──────────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -34,12 +33,12 @@ router.post('/send-otp', async (req, res) => {
 
     // Send email
     await transporter.sendMail({
-      from: `"TutorConnect" <${process.env.SMTP_USER}>`,
+      from: `"VerifiedTutor" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: 'TutorConnect — Your OTP Code',
+      subject: 'VerifiedTutor — Your OTP Code',
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: auto; padding: 32px; border-radius: 16px; border: 1px solid #e2e8f0; background: #fff;">
-          <h2 style="color: #056852; margin-bottom: 8px;">TutorConnect</h2>
+          <h2 style="color: #056852; margin-bottom: 8px;">VerifiedTutor</h2>
           <p style="color: #475569; font-size: 15px;">Your verification code is:</p>
           <div style="font-size: 40px; font-weight: 900; color: #056852; letter-spacing: 8px; margin: 24px 0;">${otp}</div>
           <p style="color: #94a3b8; font-size: 13px;">This OTP expires in 10 minutes. Do not share it with anyone.</p>
@@ -102,12 +101,12 @@ router.post('/send-login-otp', async (req, res) => {
     try {
       if (process.env.SMTP_USER) {
         await transporter.sendMail({
-          from: `"TutorConnect" <${process.env.SMTP_USER}>`,
+          from: `"VerifiedTutor" <${process.env.SMTP_USER}>`,
           to: cleanEmail,
-          subject: 'TutorConnect — Login OTP Code',
+          subject: 'VerifiedTutor — Login OTP Code',
           html: `
             <div style="font-family: sans-serif; max-width: 480px; margin: auto; padding: 32px; border-radius: 16px; border: 1px solid #e2e8f0; background: #fff;">
-              <h2 style="color: #056852; margin-bottom: 8px;">TutorConnect Login</h2>
+              <h2 style="color: #056852; margin-bottom: 8px;">VerifiedTutor Login</h2>
               <p style="color: #475569; font-size: 15px;">Your login OTP code is:</p>
               <div style="font-size: 40px; font-weight: 900; color: #056852; letter-spacing: 8px; margin: 24px 0;">${otp}</div>
               <p style="color: #94a3b8; font-size: 13px;">This OTP is valid for 10 minutes. Do not share it with anyone.</p>

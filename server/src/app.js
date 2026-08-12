@@ -41,8 +41,7 @@ import { PlatformConfig } from './models/PlatformConfig.js';
 dotenv.config();
 
 const getIo = (req) => req.app.get('io');
-const getJwtSecret = () => process.env.JWT_SECRET || 'tutorconnect-dev-secret';
-
+const getJwtSecret = () => process.env.JWT_SECRET || 'verifiedtutor-dev-secret';
 const createApp = () => {
   const app = express();
 

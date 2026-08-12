@@ -25,7 +25,7 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     if (isAdminRoute) return;
-    const storedUser = localStorage.getItem('tutorconnect-user');
+    const storedUser = localStorage.getItem('verifiedtutor-user');
     if (!storedUser) { router.replace('/login'); return; }
     const parsedUser = JSON.parse(storedUser);
     setUser(parsedUser);
@@ -37,8 +37,8 @@ export default function DashboardLayout({ children }) {
   useEffect(() => { setMobileNavOpen(false); }, [pathname]);
 
   const handleLogout = () => {
-    localStorage.removeItem('tutorconnect-token');
-    localStorage.removeItem('tutorconnect-user');
+    localStorage.removeItem('verifiedtutor-token');
+    localStorage.removeItem('verifiedtutor-user');
     window.dispatchEvent(new Event('auth-change'));
     router.replace('/login');
   };

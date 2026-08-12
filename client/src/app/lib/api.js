@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ' ';
 
 export const apiUrl = (path) => `${BASE_URL}${path}`;
 
 export const getAuthHeaders = () => {
   if (typeof window === 'undefined') return {};
-  const token = localStorage.getItem('tutorconnect-token');
+  const token = localStorage.getItem('verifiedtutor-token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 

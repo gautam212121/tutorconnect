@@ -1,6 +1,5 @@
 {
-  "name": "tutorconnect-server",
-  "version": "1.0.0",
+  "name": "verifiedtutor-server",
   "type": "module",
   "main": "server.js",
   "scripts": {

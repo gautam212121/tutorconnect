@@ -51,7 +51,7 @@ export default function LoginPage() {
 
       {/* Footer Branding */}
       <div className="mx-auto w-full max-w-5xl text-center text-xs text-slate-400 z-10">
-        © 2026 TutorConnect. India's trusted 1-on-1 tutoring platform.
+        © 2026 VerifiedTutor. India's trusted 1-on-1 tutoring platform.
       </div>
     </main>
   );

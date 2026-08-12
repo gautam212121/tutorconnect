@@ -104,7 +104,7 @@ export default function CareersPage() {
     setErrorMsg('');
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/careers`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ' '}/api/v1/careers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
@@ -128,7 +128,7 @@ export default function CareersPage() {
           <CheckCircle2 size={64} className="text-emerald-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Application Submitted!</h2>
           <p className="text-sm text-slate-600 mb-6">
-            Thank you for applying to TutorConnect. Our team will review your profile and get back to you shortly.
+            Thank you for applying to VerifiedTutor. Our team will review your profile and get back to you shortly.
           </p>
           <Link href="/" className="inline-flex rounded-xl bg-[#056852] px-6 py-3 text-sm font-bold text-white hover:bg-[#045241] transition shadow-md">
             Return to Home
@@ -432,7 +432,7 @@ export default function CareersPage() {
                     </div>
                     <div className="flex items-start gap-3">
                       <input type="checkbox" id="bgcheck" checked={form.declaration.backgroundCheck} onChange={e => setForm({...form, declaration: {...form.declaration, backgroundCheck: e.target.checked}})} className="w-5 h-5 mt-0.5 accent-emerald-500 shrink-0" />
-                      <label htmlFor="bgcheck" className="text-sm text-slate-700">I consent to TutorConnect conducting a background verification using the provided documents.</label>
+                      <label htmlFor="bgcheck" className="text-sm text-slate-700">I consent to VerifiedTutor conducting a background verification using the provided documents.</label>
                     </div>
                   </div>
                 </div>

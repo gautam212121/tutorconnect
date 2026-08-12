@@ -9,7 +9,7 @@ import {
   BarChart2, BadgeCheck, CircleDollarSign, ExternalLink, Phone,
 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
 // Simple Chart component
 function MiniLineChart({ data = [], height = 80 }) {
@@ -43,10 +43,10 @@ export default function TutorDashboard() {
   const [commissionStructure, setCommissionStructure] = useState(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem('tutorconnect-user');
+    const stored = localStorage.getItem('verifiedtutor-user');
     if (stored) setUser(JSON.parse(stored));
 
-    const token = localStorage.getItem('tutorconnect-token');
+    const token = localStorage.getItem('verifiedtutor-token');
     if (!token) return;
 
     Promise.all([

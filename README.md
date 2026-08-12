@@ -1,6 +1,6 @@
-# TutorConnect
+# VerifiedTutor
 
-TutorConnect Backend & Frontend Application (MySQL + Node.js Express + React / Vanilla JS).
+VerifiedTutor Backend & Frontend Application (MySQL + Node.js Express + React / Vanilla JS).
 
 ## XAMPP / MySQL Setup Instructions
 

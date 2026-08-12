@@ -11,7 +11,7 @@ export function formatSettings(row) {
   return {
     _id: row.id,
     id: row.id,
-    platformName: row.platformName || 'TutorConnect',
+    platformName: row.platformName || 'VerifiedTutor',
     supportEmail: row.supportEmail,
     commissionRate: Number(row.commissionRate || 10),
     gstRate: Number(row.gstRate || 18),
@@ -29,7 +29,7 @@ export class Settings {
   static async findOne() {
     let rows = await query('SELECT * FROM settings LIMIT 1');
     if (!rows[0]) {
-      await execute('INSERT INTO settings (platformName) VALUES (?)', ['TutorConnect']);
+      await execute('INSERT INTO settings (platformName) VALUES (?)', ['VerifiedTutor']);
       rows = await query('SELECT * FROM settings LIMIT 1');
     }
     return formatSettings(rows[0]);

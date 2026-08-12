@@ -9,7 +9,7 @@ import {
   Gift, LogOut, Menu, X, CheckCircle,
 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
 export default function StudentDashboard() {
   const [user, setUser] = useState(null);
@@ -21,10 +21,10 @@ export default function StudentDashboard() {
   const [searchLocation, setSearchLocation] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem('tutorconnect-user');
+    const stored = localStorage.getItem('verifiedtutor-user');
     if (stored) setUser(JSON.parse(stored));
 
-    const token = localStorage.getItem('tutorconnect-token');
+    const token = localStorage.getItem('verifiedtutor-token');
     if (!token) return;
 
     fetch(`${API}/api/v1/student/dashboard`, {

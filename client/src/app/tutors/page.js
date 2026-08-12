@@ -8,7 +8,7 @@ import BookingModal from '../components/BookingModal';
 import RegisterModal from '../components/RegisterModal';
 import { Search, MapPin, Star, BookOpen, Award, CheckCircle, Phone, ArrowRight, Filter, Loader2 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
 function TutorsSearchContent() {
   const searchParams = useSearchParams();

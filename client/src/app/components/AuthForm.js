@@ -83,7 +83,7 @@ export default function AuthForm({ mode = 'login' }) {
     setError('');
     setSuccess('');
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || ' ';
 
     try {
       const response = await fetch(`${baseUrl}/api/v1/auth/send-login-otp`, {
@@ -114,7 +114,7 @@ export default function AuthForm({ mode = 'login' }) {
     setError('');
     setSuccess('');
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || ' ';
 
     try {
       const response = await fetch(`${baseUrl}/api/v1/auth/login-otp`, {
@@ -126,8 +126,8 @@ export default function AuthForm({ mode = 'login' }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'OTP Login failed');
 
-      localStorage.setItem('tutorconnect-token', data.token);
-      localStorage.setItem('tutorconnect-user', JSON.stringify(data.user));
+      localStorage.setItem('verifiedtutor-token', data.token);
+      localStorage.setItem('verifiedtutor-user', JSON.stringify(data.user));
       window.dispatchEvent(new Event('auth-change'));
 
       setSuccess('Signed in successfully with OTP! Redirecting...');
@@ -151,7 +151,7 @@ export default function AuthForm({ mode = 'login' }) {
     setSuccess('');
 
     const endpoint = mode === 'register' ? '/api/v1/auth/register' : '/api/v1/auth/login';
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || ' ';
 
     try {
       const payload = mode === 'register' ? form : { email: form.email, password: form.password };
@@ -165,8 +165,8 @@ export default function AuthForm({ mode = 'login' }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Authentication failed');
 
-      localStorage.setItem('tutorconnect-token', data.token);
-      localStorage.setItem('tutorconnect-user', JSON.stringify(data.user));
+      localStorage.setItem('verifiedtutor-token', data.token);
+      localStorage.setItem('verifiedtutor-user', JSON.stringify(data.user));
       window.dispatchEvent(new Event('auth-change'));
 
       setSuccess(mode === 'register' ? 'Account created successfully! Redirecting...' : 'Signed in successfully! Redirecting...');
@@ -192,7 +192,7 @@ export default function AuthForm({ mode = 'login' }) {
       const firebaseUser = result.user;
       const idToken = credential?.idToken || (await firebaseUser.getIdToken());
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || ' ';
       const response = await fetch(`${baseUrl}/api/v1/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -208,8 +208,8 @@ export default function AuthForm({ mode = 'login' }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Google Authentication failed');
 
-      localStorage.setItem('tutorconnect-token', data.token);
-      localStorage.setItem('tutorconnect-user', JSON.stringify(data.user));
+      localStorage.setItem('verifiedtutor-token', data.token);
+      localStorage.setItem('verifiedtutor-user', JSON.stringify(data.user));
       window.dispatchEvent(new Event('auth-change'));
 
       setSuccess('Signed in successfully with Google! Redirecting...');

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000') + '/api/v1/',
+  baseURL: (process.env.NEXT_PUBLIC_API_URL || ' ') + '/api/v1/',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -9,7 +9,7 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('tutorconnect-token');
+    const token = localStorage.getItem('verifiedtutor-token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

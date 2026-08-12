@@ -50,7 +50,7 @@ export default function RegisterModal({ isOpen, onClose, initialRole = 'student'
     setError('');
     setSuccess('');
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || ' ';
 
     try {
       const response = await fetch(`${baseUrl}/api/v1/auth/student-register`, {
@@ -102,8 +102,8 @@ export default function RegisterModal({ isOpen, onClose, initialRole = 'student'
           </h2>
           <p className="text-xs text-slate-500 mt-1">
             {form.role === 'tutor' 
-              ? 'Join TutorConnect and start earning as a teacher' 
-              : 'Join TutorConnect to find your perfect tutor'}
+              ? 'Join VerifiedTutor and start earning as a teacher' 
+              : 'Join VerifiedTutor to find your perfect tutor'}
           </p>
         </div>
 

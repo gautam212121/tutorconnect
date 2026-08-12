@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Briefcase, CheckCircle2, XCircle, Clock, Trash2, Search, Eye, FileText, ChevronRight, Download, MapPin, GraduationCap, Calendar, BookOpen, Star } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
 export default function AdminCareersPage() {
   const [applications, setApplications] = useState([]);
@@ -15,7 +15,7 @@ export default function AdminCareersPage() {
   const [selectedApp, setSelectedApp] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('tutorconnect-token');
+    const token = localStorage.getItem('verifiedtutor-token');
     fetch(`${API}/api/v1/admin/careers`, {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -34,7 +34,7 @@ export default function AdminCareersPage() {
 
   const handleStatusChange = async (id, status) => {
     try {
-      const token = localStorage.getItem('tutorconnect-token');
+      const token = localStorage.getItem('verifiedtutor-token');
       const res = await fetch(`${API}/api/v1/admin/careers/${id}`, {
         method: 'PATCH',
         headers: { 

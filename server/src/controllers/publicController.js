@@ -203,8 +203,8 @@ export const getPublicSettings = async (req, res) => {
       settings = await Settings.findOneAndUpdate({}, {});
     }
     res.json({
-      platformName: settings.platformName || 'TutorConnect',
-      supportEmail: settings.supportEmail || 'support@tutorconnect.com',
+      platformName: settings.platformName || 'VerifiedTutor',
+      supportEmail: settings.supportEmail || 'support@verifiedtutor.in',
       heroTitle: settings.heroTitle || 'Quality Home Tuition',
       heroSubtitle: settings.heroSubtitle || 'Verified tutors at your doorstep',
       heroImage: settings.heroImage || '/hero-banner.jpg',
