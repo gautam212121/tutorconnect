@@ -50,6 +50,32 @@ export class Blog {
     return this.findById(res.insertId);
   }
 
+  static async findByIdAndUpdate(id, updates = {}) {
+    if (!id) return null;
+    const fields = [];
+    const params = [];
+    if (updates.title !== undefined) { fields.push('title = ?'); params.push(updates.title); }
+    if (updates.excerpt !== undefined) { fields.push('excerpt = ?'); params.push(updates.excerpt); }
+    if (updates.content !== undefined) { fields.push('content = ?'); params.push(updates.content); }
+    if (updates.category !== undefined) { fields.push('category = ?'); params.push(updates.category); }
+    if (updates.author !== undefined) { fields.push('author = ?'); params.push(updates.author); }
+    if (updates.role !== undefined) { fields.push('role = ?'); params.push(updates.role); }
+    if (updates.readTime !== undefined) { fields.push('readTime = ?'); params.push(updates.readTime); }
+    if (updates.image !== undefined) { fields.push('image = ?'); params.push(updates.image); }
+    if (fields.length === 0) return this.findById(id);
+    params.push(id);
+    await execute(`UPDATE blogs SET ${fields.join(', ')} WHERE id = ?`, params);
+    return this.findById(id);
+  }
+
+  static async findByIdAndDelete(id) {
+    if (!id) return null;
+    const item = await this.findById(id);
+    if (!item) return null;
+    await execute('DELETE FROM blogs WHERE id = ?', [id]);
+    return item;
+  }
+
   static async insertMany(items = []) {
     const inserted = [];
     for (const item of items) {

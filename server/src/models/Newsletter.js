@@ -31,8 +31,9 @@ export class Newsletter {
 
   static async create(data) {
     const { email } = data;
-    const sql = `INSERT INTO newsletters (email) VALUES (?)`;
-    const res = await execute(sql, [email]);
+    const sql = `INSERT INTO newsletters (email, subscribedAt) VALUES (?, ?)`;
+    const subscribedAt = new Date().toISOString();
+    const res = await execute(sql, [email, subscribedAt]);
     return this.findOne({ email });
   }
 }

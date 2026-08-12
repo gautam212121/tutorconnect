@@ -136,9 +136,9 @@ export const getCategoryById = async (req, res) => {
 
 export const saveCallbackRequest = async (req, res) => {
   try {
-    const { name, phone, role, classLevel, subject, location, mode } = req.body;
-    if (!name || !phone || !role || !classLevel || !subject) {
-      return res.status(400).json({ message: 'name, phone, role, classLevel, and subject are required' });
+    const { name, phone, role = 'student', classLevel, subject, location, mode } = req.body;
+    if (!name || !phone || !classLevel || !subject) {
+      return res.status(400).json({ message: 'name, phone, classLevel, and subject are required' });
     }
 
     const callbacks = await CallbackRequest.find();

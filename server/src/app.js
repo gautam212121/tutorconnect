@@ -42,6 +42,7 @@ dotenv.config();
 
 const getIo = (req) => req.app.get('io');
 const getJwtSecret = () => process.env.JWT_SECRET || 'verifiedtutor-dev-secret';
+const getFrontendUrl = () => process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
 const createApp = () => {
   const app = express();
 
@@ -64,7 +65,7 @@ const createApp = () => {
   // ── Security & Middleware ────────────────────────────────────────────────────
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: getFrontendUrl(),
     credentials: true,
   }));
   app.use(morgan('dev'));
@@ -113,13 +114,13 @@ const createApp = () => {
       if (!email) return res.status(400).json({ message: 'Email is required' });
       
       const { Newsletter } = await import('./models/Newsletter.js');
-      const existing = await Newsletter.findOne({ email: email.trim().toLowerCase() });
+      const normalizedEmail = email.trim().toLowerCase();
+      const existing = await Newsletter.findOne({ email: normalizedEmail });
       if (existing) {
         return res.status(400).json({ message: 'This email is already subscribed' });
       }
       
-      const sub = new Newsletter({ email: email.trim().toLowerCase() });
-      await sub.save();
+      await Newsletter.create({ email: normalizedEmail });
       res.status(201).json({ message: 'Subscribed successfully' });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -130,7 +131,8 @@ const createApp = () => {
   app.get('/api/v1/admin/newsletter', verifyToken, requireRole('admin'), async (req, res) => {
     try {
       const { Newsletter } = await import('./models/Newsletter.js');
-      const subs = await Newsletter.find().sort({ subscribedAt: -1 });
+      const subs = await Newsletter.find();
+      subs.sort((a, b) => new Date(b.subscribedAt || 0) - new Date(a.subscribedAt || 0));
       res.json(subs);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -141,7 +143,8 @@ const createApp = () => {
   app.get('/api/v1/blogs', async (_req, res) => {
     try {
       const { Blog } = await import('./models/Blog.js');
-      const blogs = await Blog.find().sort({ createdAt: -1 });
+      const blogs = await Blog.find();
+      blogs.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       res.json(blogs);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -163,8 +166,7 @@ const createApp = () => {
   app.post('/api/v1/admin/blogs', verifyToken, requireRole('admin'), async (req, res) => {
     try {
       const { Blog } = await import('./models/Blog.js');
-      const blog = new Blog(req.body);
-      await blog.save();
+      const blog = await Blog.create(req.body);
       res.status(201).json(blog);
     } catch (err) {
       res.status(400).json({ message: err.message });
@@ -174,7 +176,7 @@ const createApp = () => {
   app.put('/api/v1/admin/blogs/:id', verifyToken, requireRole('admin'), async (req, res) => {
     try {
       const { Blog } = await import('./models/Blog.js');
-      const blog = await Blog.findByIdAndUpdate(req.params.id, req.body, { new: true });
+      const blog = await Blog.findByIdAndUpdate(req.params.id, req.body);
       if (!blog) return res.status(404).json({ message: 'Blog not found' });
       res.json(blog);
     } catch (err) {
@@ -196,7 +198,8 @@ const createApp = () => {
   // ── Users (Admin) ──────────────────────────────────────────────────────────
   app.get('/api/v1/users', verifyToken, requireRole('admin'), async (_req, res) => {
     try {
-      const users = await User.find().sort({ createdAt: -1 });
+      const users = await User.find();
+      users.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       res.json(users);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -313,10 +316,9 @@ const createApp = () => {
   // ── Tutors (Public) ─────────────────────────────────────────────────────────
   app.get('/api/v1/tutors/recommended', async (_req, res) => {
     try {
-      const tutors = await User.find({ role: 'tutor', verified: true, status: 'active' })
-                               .sort({ createdAt: -1 })
-                               .limit(3);
-      const formatted = tutors.map(t => ({
+      const tutors = await User.find({ role: 'tutor', verified: true, status: 'active' });
+      tutors.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      const formatted = tutors.slice(0, 3).map(t => ({
         id: t.id,
         name: t.name,
         headline: t.headline || 'Tutor',
@@ -342,10 +344,12 @@ const createApp = () => {
       if (!t || t.role !== 'tutor') return res.status(404).json({ message: 'Tutor not found' });
 
       // Get reviews
-      const reviews = await Review.find({ tutor: t.id, status: 'visible' })
-        .populate('student', 'name avatar')
-        .sort({ createdAt: -1 })
-        .limit(10);
+      let reviews = await Review.find({ tutor: t.id, status: 'visible' });
+      reviews.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      reviews = reviews.slice(0, 10);
+      for (const review of reviews) {
+        review.student = await User.findById(review.student);
+      }
 
       const formatted = {
         id: t.id,
@@ -448,7 +452,7 @@ const createApp = () => {
                 <p>Your account has been created successfully.</p>
                 <p><strong>Login ID (Email):</strong> ${cleanEmail}</p>
                 <p><strong>Account Type:</strong> ${user.role.toUpperCase()}</p>
-                <p>You can sign in to your dashboard at <a href="${process.env.CLIENT_URL || 'http://localhost:3000'}">TutorConnect</a>.</p>
+                <p>You can sign in to your dashboard at <a href="${getFrontendUrl()}">TutorConnect</a>.</p>
               </div>
             `,
           });
@@ -538,7 +542,7 @@ const createApp = () => {
                 <p>Your student account has been created successfully.</p>
                 <p><strong>Email:</strong> ${cleanEmail}</p>
                 <p><strong>Password:</strong> ${tempPassword}</p>
-                <p>You can sign in at <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}">TutorConnect</a>.</p>
+                <p>You can sign in at <a href="${getFrontendUrl()}">TutorConnect</a>.</p>
               </div>
             `,
           });
@@ -631,11 +635,13 @@ const createApp = () => {
 
   app.get('/api/v1/auth/me', verifyToken, async (req, res) => {
     try {
-      const user = await User.findById(req.user.id)
-        .select('-password')
-        .populate('activeSubscription');
+      const user = await User.findById(req.user.id);
       if (!user) {
         return res.status(401).json({ message: 'User not found' });
+      }
+      delete user.password;
+      if (user.activeSubscription) {
+        user.activeSubscription = await Subscription.findById(user.activeSubscription);
       }
       return res.json({ user });
     } catch (err) {
@@ -693,12 +699,26 @@ const createApp = () => {
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const thisWeek = new Date(now - 7 * 24 * 60 * 60 * 1000);
 
-      const tutor = await User.findById(userId).populate('activeSubscription');
+      const tutor = await User.findById(userId);
+      if (tutor?.activeSubscription) {
+        tutor.activeSubscription = await Subscription.findById(tutor.activeSubscription);
+      }
       const { checkFreeLeadsAvailable, calculateCommissionRate } = await import('./services/commissionService.js');
 
       const [bookings, leads, earningsData, freeLeads, commissionInfo, unreadMessages] = await Promise.all([
-        Booking.find({ tutor: userId }).populate('student', 'name avatar address grade').sort({ scheduledAt: -1 }),
-        Lead.find({ tutor: userId }).populate('student', 'name avatar grade board subjects').sort({ createdAt: -1 }).limit(10),
+        (async () => {
+          const list = await Booking.find({ tutor: userId });
+          for (const booking of list) {
+            booking.student = await User.findById(booking.student);
+          }
+          list.sort((a, b) => new Date(b.scheduledAt || 0) - new Date(a.scheduledAt || 0));
+          return list;
+        })(),
+        (async () => {
+          const list = await Lead.find({ tutor: userId });
+          list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+          return list.slice(0, 10);
+        })(),
         Payment.aggregate([
           { $match: { tutor: userId, status: 'Completed', createdAt: { $gte: thisMonth } } },
           { $group: { _id: null, total: { $sum: '$tutorShare' }, commission: { $sum: '$adminShare' }, gross: { $sum: '$totalAmount' } } },
@@ -726,9 +746,9 @@ const createApp = () => {
 
       // Recent payouts
       const { Withdrawal } = await import('./models/Withdrawal.js');
-      const recentPayouts = await Withdrawal.find({ tutor: userId })
-        .sort({ createdAt: -1 })
-        .limit(3);
+      let recentPayouts = await Withdrawal.find({ tutor: userId });
+      recentPayouts.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      recentPayouts = recentPayouts.slice(0, 3);
 
       res.json({
         stats: {
@@ -761,17 +781,16 @@ const createApp = () => {
       const { page = 1, limit = 20 } = req.query;
       const notifications = await Notification.find({
         $or: [{ recipient: req.user.id }, { recipient: null }],
-      })
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+      });
+      notifications.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      const pagedNotifications = notifications.slice((page - 1) * limit, (page - 1) * limit + parseInt(limit));
 
       const unreadCount = await Notification.countDocuments({
         $or: [{ recipient: req.user.id }, { recipient: null }],
         read: false,
       });
 
-      res.json({ notifications, unreadCount });
+      res.json({ notifications: pagedNotifications, unreadCount });
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -807,12 +826,11 @@ const createApp = () => {
         hashedPassword = await bcrypt.hash(password, 10);
       }
 
-      const career = new Career({
+      const career = await Career.create({
         name, email, password: hashedPassword, phone, gender, dob, address,
         education, teaching, experienceDetails, availability,
         fees, skills, documents
       });
-      await career.save();
 
       getIo(req)?.emit('careerSubmitted', career);
 
@@ -824,7 +842,8 @@ const createApp = () => {
 
   app.get('/api/v1/admin/careers', verifyToken, requireRole('admin'), async (req, res) => {
     try {
-      const careers = await Career.find().sort({ createdAt: -1 });
+      const careers = await Career.find();
+      careers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       res.json(careers);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -843,7 +862,7 @@ const createApp = () => {
           const userPassword = career.password || await bcrypt.hash('tutor123', 10);
           const referralCode = `TC${career.name.substring(0, 2).toUpperCase()}${Date.now().toString(36).toUpperCase()}`;
 
-          const newUser = new User({
+          await User.create({
             name: career.name,
             email: career.email,
             password: userPassword,
@@ -864,7 +883,6 @@ const createApp = () => {
             referralCode,
             kycStatus: 'submitted',
           });
-          await newUser.save();
         }
       }
 
@@ -884,14 +902,13 @@ const createApp = () => {
         return res.status(400).json({ message: 'tutorId and rating are required' });
       }
 
-      const review = new Review({
+      const review = await Review.create({
         student: req.user.id,
         tutor: tutorId,
         booking: bookingId,
         rating,
         comment,
       });
-      await review.save();
 
       // Update tutor's average rating
       const allReviews = await Review.find({ tutor: tutorId, status: 'visible' });
@@ -908,9 +925,11 @@ const createApp = () => {
 
   app.get('/api/v1/reviews/tutor/:tutorId', async (req, res) => {
     try {
-      const reviews = await Review.find({ tutor: req.params.tutorId, status: 'visible' })
-        .populate('student', 'name avatar')
-        .sort({ createdAt: -1 });
+      const reviews = await Review.find({ tutor: req.params.tutorId, status: 'visible' });
+      reviews.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      for (const review of reviews) {
+        review.student = await User.findById(review.student);
+      }
       res.json(reviews);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -937,7 +956,8 @@ const createApp = () => {
         }
       }
 
-      const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-password');
+      const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true });
+      if (user && user.password) delete user.password;
       res.json(user);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -951,13 +971,13 @@ const createApp = () => {
       const tutorId = req.params.tutorId;
 
       if (user.wishlist?.includes(tutorId)) {
-        user.wishlist = user.wishlist.filter(id => id.toString() !== tutorId);
-        await user.save();
+        const updatedWishlist = user.wishlist.filter(id => id.toString() !== tutorId);
+        await User.findByIdAndUpdate(req.user.id, { wishlist: updatedWishlist });
         return res.json({ message: 'Removed from wishlist', wishlisted: false });
       }
 
-      user.wishlist = [...(user.wishlist || []), tutorId];
-      await user.save();
+      const updatedWishlist = [...(user.wishlist || []), tutorId];
+      await User.findByIdAndUpdate(req.user.id, { wishlist: updatedWishlist });
       res.json({ message: 'Added to wishlist', wishlisted: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -966,8 +986,13 @@ const createApp = () => {
 
   app.get('/api/v1/wishlist', verifyToken, requireRole('student'), async (req, res) => {
     try {
-      const user = await User.findById(req.user.id).populate('wishlist', 'name avatar headline subjects rating price location verified');
-      res.json(user.wishlist || []);
+      const user = await User.findById(req.user.id);
+      const wishlist = [];
+      for (const tutorId of user.wishlist || []) {
+        const tutor = await User.findById(tutorId);
+        if (tutor) wishlist.push(tutor);
+      }
+      res.json(wishlist);
     } catch (err) {
       res.status(500).json({ message: err.message });
     }

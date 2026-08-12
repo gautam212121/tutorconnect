@@ -8,7 +8,12 @@ export const useSocket = () => {
 
   useEffect(() => {
     if (!socketInstance) {
-      socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || ' ');
+      const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+      if (socketUrl) {
+        socketInstance = io(socketUrl);
+      } else {
+        console.warn('Missing NEXT_PUBLIC_SOCKET_URL, socket connection disabled');
+      }
     }
     setSocket(socketInstance);
     
