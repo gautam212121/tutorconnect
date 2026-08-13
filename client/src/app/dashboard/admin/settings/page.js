@@ -32,7 +32,7 @@ export default function SettingsAdminPage() {
   const [saved, setSaved] = useState(false);
 
   const [settings, setSettings] = useState({
-    siteName: 'VerifiedTutors',
+    siteName: 'VerifiedTutor',
     siteTagline: 'Learn from the Best Tutors Near You',
     siteUrl: 'https://verifiedtutor.in',
     supportEmail: 'support@verifiedtutor.in',
@@ -111,9 +111,8 @@ export default function SettingsAdminPage() {
                 <button
                   key={sec.id}
                   onClick={() => setActiveSection(sec.id)}
-                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
-                    activeSection === sec.id ? 'bg-[#056852] text-white' : 'text-slate-600 hover:bg-slate-100'
-                  }`}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${activeSection === sec.id ? 'bg-[#056852] text-white' : 'text-slate-600 hover:bg-slate-100'
+                    }`}
                 >
                   <Icon size={15} />
                   {sec.label}
@@ -128,7 +127,7 @@ export default function SettingsAdminPage() {
           {activeSection === 'hero' && (
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
               <p className="text-sm font-bold text-slate-900">Hero Section Settings</p>
-              
+
               <div>
                 <label className="text-[11px] font-semibold uppercase text-slate-400 mb-1 block">Hero Title</label>
                 <input

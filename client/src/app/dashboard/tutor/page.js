@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import TutorScheduleView from './components/TutorScheduleView';
 import {
   Users, Star, Calendar, ArrowRight, CreditCard, TrendingUp, ArrowUpRight,
   MapPin, GraduationCap, Clock, Award, ChevronRight, Wallet, Shield,
@@ -36,7 +38,9 @@ function MiniLineChart({ data = [], height = 80 }) {
   );
 }
 
-export default function TutorDashboard() {
+function TutorDashboardContent() {
+  const searchParams = useSearchParams();
+  const section = searchParams.get('section');
   const [user, setUser] = useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,11 +84,22 @@ export default function TutorDashboard() {
   const commission = dashboard?.commission || {};
   const leads = dashboard?.leads || [];
   const upcomingSessions = dashboard?.upcomingSessions || [];
+  const assignedStudents = dashboard?.assignedStudents || [];
   const monthlyEarnings = dashboard?.monthlyEarnings || [];
   const recentPayouts = dashboard?.recentPayouts || [];
   const completedSessions = dashboard?.completedSessions || 0;
+  const hourlyRate = dashboard?.hourlyRate ?? dashboard?.rateSummary?.hourly ?? 0;
+  const monthlyRate = dashboard?.monthlyRate ?? dashboard?.rateSummary?.monthly ?? 0;
   const freeLeads = stats.freeLeads || { used: 0, limit: 5, remaining: 5 };
   const tiers = commissionStructure?.tiers || [];
+
+  if (section === 'schedule') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <TutorScheduleView user={user} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
@@ -137,6 +152,63 @@ export default function TutorDashboard() {
       </div>
 
       {/* ── Commission Rate + Premium Upsell ───────────────────────────────── */}
+      <div className="grid lg:grid-cols-3 gap-4 mb-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Your Rates</h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">Current tutoring pricing</p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-extrabold text-emerald-600">₹{Number(hourlyRate || 0).toLocaleString()}</p>
+              <p className="text-[10px] text-slate-400">Hourly</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-400">Hourly Rate</p>
+              <p className="mt-1 text-lg font-extrabold text-slate-800">₹{Number(hourlyRate || 0).toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl bg-emerald-50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-400">Monthly Rate</p>
+              <p className="mt-1 text-lg font-extrabold text-emerald-700">₹{Number(monthlyRate || 0).toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Premium Upsell */}
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white">
+          <div className="flex items-center gap-2 mb-3">
+            <Crown size={20} className="text-amber-400" />
+            <h3 className="text-sm font-bold">Want Lower Commission & More Leads?</h3>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed mb-4">
+            Upgrade to a Pro or Premium plan and get more leads, lower commission rates, search boost, and priority support.
+          </p>
+
+          <div className="space-y-2 mb-4">
+            {[
+              '50 leads/month (Basic: 20)',
+              '5% commission rate',
+              'Search boost & priority badge',
+              'Premium support',
+            ].map((feature, i) => (
+              <div key={i} className="flex items-center gap-2 text-[11px] text-slate-200">
+                <BadgeCheck size={12} className="text-emerald-400 shrink-0" />
+                {feature}
+              </div>
+            ))}
+          </div>
+
+          <Link
+            href="/dashboard/tutor/settings?tab=subscription"
+            className="flex items-center justify-center gap-1 w-full py-2.5 bg-emerald-500 rounded-xl text-xs font-bold hover:bg-emerald-600 transition"
+          >
+            View Subscription Plans <ArrowRight size={12} />
+          </Link>
+        </div>
+      </div>
+
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
         {/* Commission Rate */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
@@ -195,36 +267,62 @@ export default function TutorDashboard() {
           </Link>
         </div>
 
-        {/* Premium Upsell */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white">
-          <div className="flex items-center gap-2 mb-3">
-            <Crown size={20} className="text-amber-400" />
-            <h3 className="text-sm font-bold">Want Lower Commission & More Leads?</h3>
-          </div>
-          <p className="text-xs text-slate-300 leading-relaxed mb-4">
-            Upgrade to a Pro or Premium plan and get more leads, lower commission rates, search boost, and priority support.
-          </p>
+      </div>
 
-          <div className="space-y-2 mb-4">
-            {[
-              '50 leads/month (Basic: 20)',
-              '5% commission rate',
-              'Search boost & priority badge',
-              'Premium support',
-            ].map((feature, i) => (
-              <div key={i} className="flex items-center gap-2 text-[11px] text-slate-200">
-                <BadgeCheck size={12} className="text-emerald-400 shrink-0" />
-                {feature}
-              </div>
-            ))}
+      <div className="grid lg:grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-800">Assigned Students</h3>
+            <span className="text-[10px] text-slate-400">Live bookings</span>
           </div>
+          {assignedStudents.length === 0 ? (
+            <div className="text-center py-8">
+              <Users size={32} className="mx-auto text-slate-200 mb-2" />
+              <p className="text-xs text-slate-400">No assigned students yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {assignedStudents.map((student, idx) => (
+                <div key={idx} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">{student.studentName || 'Student'}</p>
+                      <p className="text-[10px] text-slate-500">{student.selectedSubjects?.join(', ') || 'General subject'}</p>
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">{student.status || 'Pending'}</span>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-[11px] text-slate-500 sm:grid-cols-2">
+                    <div><span className="block text-[9px] uppercase tracking-wide text-slate-400">Class</span>{student.classLevel || 'N/A'}</div>
+                    <div><span className="block text-[9px] uppercase tracking-wide text-slate-400">Location</span>{student.location || 'N/A'}</div>
+                    <div><span className="block text-[9px] uppercase tracking-wide text-slate-400">Schedule</span>{student.schedule ? new Date(student.schedule).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'Flexible'}</div>
+                    <div><span className="block text-[9px] uppercase tracking-wide text-slate-400">Contact</span>{student.contact || 'N/A'}</div>
+                  </div>
+                  <div className="mt-3 rounded-xl bg-white p-3 text-[11px] text-slate-600">
+                    <div className="flex items-center justify-between">
+                      <span>Amount</span>
+                      <strong>₹{Number(student.totalAmount || student.amount || 0).toLocaleString()}</strong>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span>Payment</span>
+                      <strong>{student.paymentStatus || 'Pending'}</strong>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-          <Link
-            href="/dashboard/tutor/settings?tab=subscription"
-            className="flex items-center justify-center gap-1 w-full py-2.5 bg-emerald-500 rounded-xl text-xs font-bold hover:bg-emerald-600 transition"
-          >
-            View Subscription Plans <ArrowRight size={12} />
-          </Link>
+        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-800">Message Activity</h3>
+            <Link href="/dashboard/tutor/messages" className="text-[11px] font-semibold text-emerald-600">Open Inbox</Link>
+          </div>
+          <div className="space-y-3 text-[11px] text-slate-500">
+            <div className="rounded-xl bg-slate-50 p-3">Tutor → student messages are shared with the student and admin in the live inbox.</div>
+            <div className="rounded-xl bg-slate-50 p-3">Student replies are mirrored to student, tutor, and admin via the shared conversation API.</div>
+            <div className="rounded-xl bg-slate-50 p-3">Socket events emit in real time for new messages and read receipts.</div>
+          </div>
         </div>
       </div>
 
@@ -447,5 +545,13 @@ export default function TutorDashboard() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function TutorDashboard() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+      <TutorDashboardContent />
+    </Suspense>
   );
 }

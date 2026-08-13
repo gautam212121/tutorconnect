@@ -443,16 +443,25 @@ const createApp = () => {
         const mailer = getMailer();
         if (mailer && process.env.SMTP_USER) {
           await mailer.sendMail({
-            from: `"TutorConnect" <${process.env.SMTP_USER}>`,
+            from: `"VerifiedTutor" <${process.env.SMTP_USER}>`,
             to: cleanEmail,
-            subject: 'Welcome to TutorConnect!',
+            subject: 'Welcome to VerifiedTutor!',
             html: `
-              <div style="font-family: sans-serif; max-width: 560px; margin: auto; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; background: #fff;">
-                <h2 style="color: #056852; margin-bottom: 8px;">Welcome to TutorConnect, ${name}!</h2>
-                <p>Your account has been created successfully.</p>
-                <p><strong>Login ID (Email):</strong> ${cleanEmail}</p>
-                <p><strong>Account Type:</strong> ${user.role.toUpperCase()}</p>
-                <p>You can sign in to your dashboard at <a href="${getFrontendUrl()}">TutorConnect</a>.</p>
+              <div style="font-family: 'Segoe UI', sans-serif; max-width: 580px; margin: auto; padding: 0; border-radius: 20px; overflow: hidden; border: 1px solid #e2e8f0;">
+                <div style="background: linear-gradient(135deg, #056852 0%, #078a6e 100%); padding: 36px 32px; text-align: center;">
+                  <h1 style="color: #fff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">✅ VerifiedTutor</h1>
+                  <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">Find the Right Tutor for Every Milestone</p>
+                </div>
+                <div style="padding: 32px; background: #fff;">
+                  <h2 style="color: #056852; margin: 0 0 12px; font-size: 20px;">Welcome, ${name}! 🎉</h2>
+                  <p style="color: #475569; font-size: 14px; line-height: 1.6;">Your account has been created successfully on <strong>VerifiedTutor</strong>.</p>
+                  <p style="color: #475569; font-size: 14px;"><strong>Login Email:</strong> ${cleanEmail}</p>
+                  <p style="color: #475569; font-size: 14px;"><strong>Account Type:</strong> ${user.role.toUpperCase()}</p>
+                  <div style="margin: 24px 0; text-align: center;">
+                    <a href="${getFrontendUrl()}" style="display: inline-block; background: #056852; color: #fff; padding: 14px 32px; border-radius: 12px; font-weight: 700; font-size: 14px; text-decoration: none;">Go to Dashboard →</a>
+                  </div>
+                  <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">If you did not create this account, please ignore this email.</p>
+                </div>
               </div>
             `,
           });
@@ -470,10 +479,15 @@ const createApp = () => {
 
   app.post('/api/v1/auth/student-register', async (req, res) => {
     try {
-      const { name, phone, email, grade, address } = req.body;
-      if (!name || !phone || !email) {
-        return res.status(400).json({ message: 'Name, phone and email are required' });
-      }
+      const { name, phone, email, grade, subject, address } = req.body;
+
+      // ── Server-side validation ──
+      if (!name || !name.trim()) return res.status(400).json({ message: 'Full name is required' });
+      if (!phone || !phone.trim()) return res.status(400).json({ message: 'Mobile number is required' });
+      if (!email || !email.trim()) return res.status(400).json({ message: 'Email address is required' });
+      if (!grade) return res.status(400).json({ message: 'Class / Course is required' });
+      if (!subject || !subject.trim()) return res.status(400).json({ message: 'Subject is required' });
+      if (!address || !address.trim()) return res.status(400).json({ message: 'Address is required' });
 
       const cleanEmail = email.trim().toLowerCase();
       const existing = await User.findOne({ email: cleanEmail });
@@ -484,20 +498,21 @@ const createApp = () => {
       const tempPassword = `${name.replace(/\s+/g, '').toLowerCase()}@${Math.floor(1000 + Math.random() * 9000)}`;
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
       const referralCode = `TC${name.substring(0, 2).toUpperCase()}${Date.now().toString(36).toUpperCase()}`;
+      const locationStr = typeof address === 'string' ? address.trim() : '';
 
       const userPayload = {
         name: name.trim(),
         email: cleanEmail,
         password: hashedPassword,
         role: 'student',
-        mobile: phone || '',
+        mobile: phone.trim(),
         grade: grade || '',
         address: {
-          city: address || '',
+          city: locationStr,
           area: '',
           pincode: '',
           state: '',
-          full: address || '',
+          full: locationStr,
         },
         status: 'pending',
         referralCode,
@@ -513,15 +528,26 @@ const createApp = () => {
           name: user.name,
           phone: user.mobile,
           email: user.email,
-          grade: user.grade,
-          address: typeof address === 'string' ? address : user.address?.full || '',
+          grade: grade || '',
+          classLevel: grade || '',
+          subject: subject ? subject.trim() : '',
+          location: locationStr,
+          mode: 'Home',
+          address: locationStr,
+          role: 'student',
         },
-        subject: grade || 'Student Registration',
+        subject: subject ? subject.trim() : grade || 'Student Registration',
         grade: grade || '',
         examType: 'New Student Registration',
         mode: 'Home',
         duration: 0,
-        message: `New student registration from ${name}`,
+        message: `New student registration from ${name.trim()} — Subject: ${subject || grade}`,
+        address: {
+          full: locationStr,
+          city: locationStr,
+          area: '',
+          pincode: '',
+        },
         amount: 0,
         status: 'Pending',
         paymentStatus: 'Pending',
@@ -533,16 +559,29 @@ const createApp = () => {
         const mailer = getMailer();
         if (mailer && process.env.SMTP_USER) {
           await mailer.sendMail({
-            from: `"TutorConnect" <${process.env.SMTP_USER}>`,
+            from: `"VerifiedTutor" <${process.env.SMTP_USER}>`,
             to: cleanEmail,
-            subject: 'TutorConnect — Your Student Portal Login Credentials',
+            subject: 'VerifiedTutor — Your Student Portal Login Credentials',
             html: `
-              <div style="font-family: sans-serif; max-width: 560px; margin: auto; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; background: #fff;">
-                <h2 style="color: #056852; margin-bottom: 8px;">Welcome to TutorConnect</h2>
-                <p>Your student account has been created successfully.</p>
-                <p><strong>Email:</strong> ${cleanEmail}</p>
-                <p><strong>Password:</strong> ${tempPassword}</p>
-                <p>You can sign in at <a href="${getFrontendUrl()}">TutorConnect</a>.</p>
+              <div style="font-family: 'Segoe UI', sans-serif; max-width: 580px; margin: auto; padding: 0; border-radius: 20px; overflow: hidden; border: 1px solid #e2e8f0;">
+                <div style="background: linear-gradient(135deg, #056852 0%, #078a6e 100%); padding: 36px 32px; text-align: center;">
+                  <h1 style="color: #fff; margin: 0; font-size: 26px; font-weight: 800;">✅ VerifiedTutor</h1>
+                  <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">Find the Right Tutor for Every Milestone</p>
+                </div>
+                <div style="padding: 32px; background: #fff;">
+                  <h2 style="color: #056852; margin: 0 0 12px; font-size: 20px;">Welcome to VerifiedTutor! 🎉</h2>
+                  <p style="color: #475569; font-size: 14px; line-height: 1.6;">Dear <strong>${name.trim()}</strong>, your student account has been created successfully. Below are your login credentials:</p>
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0;">
+                    <p style="margin: 0 0 10px; color: #475569; font-size: 14px;"><strong>📧 Email:</strong> ${cleanEmail}</p>
+                    <p style="margin: 0 0 10px; color: #475569; font-size: 14px;"><strong>🔒 Password:</strong> ${tempPassword}</p>
+                    <p style="margin: 0; color: #475569; font-size: 14px;"><strong>📚 Class:</strong> ${grade}</p>
+                  </div>
+                  <p style="color: #64748b; font-size: 13px; line-height: 1.6;">Our team will review your profile and connect you with the best tutors in your area.</p>
+                  <div style="margin: 24px 0; text-align: center;">
+                    <a href="${getFrontendUrl()}" style="display: inline-block; background: #056852; color: #fff; padding: 14px 32px; border-radius: 12px; font-weight: 700; font-size: 14px; text-decoration: none;">Login to Your Account →</a>
+                  </div>
+                  <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">Please keep your credentials safe. If you have questions, reply to this email.</p>
+                </div>
               </div>
             `,
           });
@@ -614,6 +653,33 @@ const createApp = () => {
         isOnline: true,
       });
 
+      if (user.role === 'student' || user.role === 'tutor') {
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        
+        await query('DELETE FROM otps WHERE email = ?', [user.email]);
+        await query('INSERT INTO otps (email, otp, expiresAt, used) VALUES (?, ?, ?, false)', [user.email, otp, expiresAt]);
+        
+        if (process.env.SMTP_USER) {
+          try {
+            await getMailer().sendMail({
+              from: `"VerifiedTutor" <${process.env.SMTP_USER}>`,
+              to: user.email,
+              subject: 'VerifiedTutor — 2-Step Login OTP Verification',
+              html: `
+                <div style="font-family: sans-serif; max-width: 480px; margin: auto; padding: 32px; border-radius: 16px; border: 1px solid #e2e8f0; background: #fff;">
+                  <h2 style="color: #056852; margin-bottom: 8px;">2-Step Verification</h2>
+                  <p style="color: #475569; font-size: 15px;">Your login OTP code is:</p>
+                  <div style="font-size: 40px; font-weight: 900; color: #056852; letter-spacing: 8px; margin: 24px 0;">${otp}</div>
+                  <p style="color: #94a3b8; font-size: 13px;">This OTP is valid for 10 minutes. Do not share it with anyone.</p>
+                </div>
+              `
+            });
+          } catch(err) { console.error('OTP Mail error:', err); }
+        }
+        return res.json({ requireOtp: true, email: user.email, message: 'OTP sent to your registered email for 2-step verification.' });
+      }
+
       const token = jwt.sign(
         { sub: user.id, role: user.role, email: user.email, name: user.name },
         getJwtSecret(),
@@ -670,6 +736,25 @@ const createApp = () => {
       const upcomingSessions = bookings.filter(b => b.status === 'Confirmed' && b.scheduledAt && new Date(b.scheduledAt) > now);
       const activeTutors = [...new Set(bookings.filter(b => b.status === 'Confirmed').map(b => b.tutor?._id?.toString()))];
       const subjects = [...new Set(bookings.map(b => b.subject).filter(Boolean))];
+      const assignedTutors = bookings
+        .filter(b => b.tutor)
+        .map(b => ({
+          bookingId: b.id || b._id,
+          tutorId: b.tutor?._id || b.tutor?.id,
+          tutorName: b.tutor?.name || 'Assigned Tutor',
+          subject: b.subject || 'General',
+          grade: b.grade || 'N/A',
+          selectedSubjects: [b.subject || 'General'],
+          status: b.status || 'Pending',
+          amount: Number(b.amount || 0),
+          totalAmount: Number(b.amount || 0),
+          scheduledAt: b.scheduledAt,
+          mode: b.mode || 'Home',
+          location: b.address?.city || b.address?.full || b.studentSnapshot?.location || b.location || 'Lucknow',
+          hourlyRate: Number(b.tutorRate || b.tutorSnapshot?.price || 0),
+          monthlyRate: Number((b.tutorRate || b.tutorSnapshot?.price || 0) * 20),
+          tutor: b.tutor,
+        }));
 
       res.json({
         stats: {
@@ -681,6 +766,7 @@ const createApp = () => {
         },
         upcomingSessions: upcomingSessions.slice(0, 5),
         recentBookings: bookings.slice(0, 5),
+        assignedTutors,
         subjects: subjects.map(s => {
           const tutorCount = bookings.filter(b => b.subject === s && b.tutor).length;
           return { name: s, tutorCount };
@@ -730,6 +816,27 @@ const createApp = () => {
 
       const upcomingSessions = bookings.filter(b => b.status === 'Confirmed' && b.scheduledAt && new Date(b.scheduledAt) > now);
       const activeLeads = leads.filter(l => ['new', 'contacted', 'responded'].includes(l.status));
+      const assignedStudents = bookings
+        .filter(b => b.student)
+        .map((b) => ({
+          bookingId: b.id || b._id,
+          studentId: b.student?._id || b.student?.id,
+          studentName: b.student?.name || 'Student',
+          classLevel: b.grade || b.student?.grade || 'N/A',
+          selectedSubjects: [b.subject || 'General'],
+          location: b.address?.city || b.address?.full || b.student?.address?.city || 'Lucknow',
+          address: b.address || b.student?.address || { city: 'Lucknow', area: 'N/A', pincode: 'N/A' },
+          schedule: b.scheduledAt ? new Date(b.scheduledAt).toISOString() : 'Flexible',
+          contact: b.student?.mobile || b.student?.email || 'N/A',
+          requiredDetails: b.student?.specialRequirements || b.message || 'Not provided',
+          paymentStatus: b.paymentStatus || 'Pending',
+          amount: Number(b.amount || 0),
+          totalAmount: Number(b.amount || 0),
+          status: b.status || 'Pending',
+          mode: b.mode || 'Home',
+          hourlyRate: Number(tutor.price || b.amount || 0),
+          monthlyRate: Number((tutor.price || b.amount || 0) * 20),
+        }));
 
       // Monthly earnings for chart (last 6 months)
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
@@ -763,6 +870,13 @@ const createApp = () => {
           unreadMessages,
         },
         commission: commissionInfo,
+        hourlyRate: Number(tutor.price || 0),
+        monthlyRate: Number((tutor.price || 0) * 20),
+        rateSummary: {
+          hourly: Number(tutor.price || 0),
+          monthly: Number((tutor.price || 0) * 20),
+        },
+        assignedStudents,
         upcomingSessions: upcomingSessions.slice(0, 5),
         leads: leads.slice(0, 10),
         monthlyEarnings,
@@ -779,16 +893,12 @@ const createApp = () => {
   app.get('/api/v1/notifications', verifyToken, async (req, res) => {
     try {
       const { page = 1, limit = 20 } = req.query;
-      const notifications = await Notification.find({
-        $or: [{ recipient: req.user.id }, { recipient: null }],
-      });
+      const notifications = await Notification.find({ recipient: req.user.id });
+      
       notifications.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       const pagedNotifications = notifications.slice((page - 1) * limit, (page - 1) * limit + parseInt(limit));
 
-      const unreadCount = await Notification.countDocuments({
-        $or: [{ recipient: req.user.id }, { recipient: null }],
-        read: false,
-      });
+      const unreadCount = notifications.filter(n => !n.read).length;
 
       res.json({ notifications: pagedNotifications, unreadCount });
     } catch (err) {
@@ -799,7 +909,7 @@ const createApp = () => {
   app.post('/api/v1/notifications/mark-read', verifyToken, async (req, res) => {
     try {
       await Notification.updateMany(
-        { $or: [{ recipient: req.user.id }, { recipient: null }], read: false },
+        { recipient: req.user.id, read: false },
         { read: true, readAt: new Date() }
       );
       res.json({ success: true, message: 'Notifications marked as read' });
@@ -833,6 +943,49 @@ const createApp = () => {
       });
 
       getIo(req)?.emit('careerSubmitted', career);
+
+      // Send confirmation email to the tutor applicant
+      try {
+        const mailer = getMailer();
+        if (mailer && process.env.SMTP_USER && email) {
+          await mailer.sendMail({
+            from: `"VerifiedTutor" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: 'VerifiedTutor — Application Received! We will contact you within 24 hours',
+            html: `
+              <div style="font-family: 'Segoe UI', sans-serif; max-width: 580px; margin: auto; padding: 0; border-radius: 20px; overflow: hidden; border: 1px solid #e2e8f0;">
+                <div style="background: linear-gradient(135deg, #056852 0%, #078a6e 100%); padding: 36px 32px; text-align: center;">
+                  <h1 style="color: #fff; margin: 0; font-size: 26px; font-weight: 800;">✅ VerifiedTutor</h1>
+                  <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">Find the Right Tutor for Every Milestone</p>
+                </div>
+                <div style="padding: 32px; background: #fff;">
+                  <h2 style="color: #056852; margin: 0 0 12px; font-size: 22px;">Application Received! 🎉</h2>
+                  <p style="color: #475569; font-size: 15px; line-height: 1.7;">Dear <strong>${name}</strong>,</p>
+                  <p style="color: #475569; font-size: 15px; line-height: 1.7;">Thank you for applying to join <strong>VerifiedTutor</strong> as a tutor. We have received your application successfully.</p>
+                  <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 20px; margin: 24px 0; text-align: center;">
+                    <p style="margin: 0; font-size: 18px; font-weight: 800; color: #056852;">⏱️ We will contact you within 24 hours</p>
+                    <p style="margin: 8px 0 0; color: #64748b; font-size: 13px;">Our team reviews every application carefully</p>
+                  </div>
+                  <p style="color: #475569; font-size: 14px; line-height: 1.7;">Here is a summary of your application:</p>
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 16px 0;">
+                    <p style="margin: 0 0 8px; color: #475569; font-size: 14px;"><strong>👤 Name:</strong> ${name}</p>
+                    <p style="margin: 0 0 8px; color: #475569; font-size: 14px;"><strong>📧 Email:</strong> ${email}</p>
+                    <p style="margin: 0 0 8px; color: #475569; font-size: 14px;"><strong>📱 Phone:</strong> ${phone}</p>
+                    ${teaching && teaching.subjects && teaching.subjects.length > 0 ? `<p style="margin: 0; color: #475569; font-size: 14px;"><strong>📚 Subjects:</strong> ${teaching.subjects.join(', ')}</p>` : ''}
+                  </div>
+                  <p style="color: #475569; font-size: 14px; line-height: 1.7;">If you have any questions, feel free to reply to this email. We look forward to having you on our platform!</p>
+                  <div style="margin: 28px 0; text-align: center;">
+                    <a href="${getFrontendUrl()}" style="display: inline-block; background: #056852; color: #fff; padding: 14px 32px; border-radius: 12px; font-weight: 700; font-size: 14px; text-decoration: none;">Visit VerifiedTutor →</a>
+                  </div>
+                  <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">© VerifiedTutor — Connecting Students with the Best Tutors</p>
+                </div>
+              </div>
+            `,
+          });
+        }
+      } catch (mailErr) {
+        console.error('Tutor application confirmation email failed to send:', mailErr);
+      }
 
       res.status(201).json({ message: 'Application submitted successfully', data: career });
     } catch (err) {

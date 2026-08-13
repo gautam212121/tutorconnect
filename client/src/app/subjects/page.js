@@ -296,7 +296,7 @@ export default function SubjectsDirectoryPage() {
               <p className="text-xs text-slate-400 leading-relaxed">
                 Connecting students with the right tutors for better learning and brighter futures.
               </p>
-              <p className="text-[11px] text-slate-500">© {new Date().getFullYear()} VerifiedTutors. All Rights Reserved.</p>
+              <p className="text-[11px] text-slate-500">© {new Date().getFullYear()} VerifiedTutor. All Rights Reserved.</p>
             </div>
             {['For Students', 'For Tutors', 'Company'].map((title, idx) => (
               <div key={idx}>

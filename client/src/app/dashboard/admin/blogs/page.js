@@ -97,7 +97,7 @@ export default function BlogsAdminPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Action failed');
-      
+
       setModalOpen(false);
       fetchBlogs();
     } catch (err) {
@@ -123,8 +123,8 @@ export default function BlogsAdminPage() {
     }
   };
 
-  const filteredBlogs = blogs.filter(b => 
-    b.title.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredBlogs = blogs.filter(b =>
+    b.title.toLowerCase().includes(search.toLowerCase()) ||
     b.author.toLowerCase().includes(search.toLowerCase())
   );
 

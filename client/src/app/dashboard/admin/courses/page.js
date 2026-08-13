@@ -57,17 +57,17 @@ export default function CoursesAdminPage() {
   const [isCurriculumModalOpen, setIsCurriculumModalOpen] = useState(false);
   const [curriculumCategory, setCurriculumCategory] = useState(null);
   const [curriculumList, setCurriculumList] = useState([]);
-  
+
   // Search & Filter
   const [search, setSearch] = useState('');
-  
+
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
   const [currentCategory, setCurrentCategory] = useState({ name: '', image: '', imageFile: null, description: '', priority: 'Medium', status: 'active', type: 'Academics' });
-  
+
   const [deleteConfirm, setDeleteConfirm] = useState(null); // id to delete
-  
+
   // Toast
   const [toast, setToast] = useState({ message: '', type: '' });
   const showToast = (message, type = 'success') => {
@@ -97,15 +97,15 @@ export default function CoursesAdminPage() {
   // Socket listeners
   useEffect(() => {
     if (!socket) return;
-    
+
     const handleCreated = (newCat) => setCategories(prev => [newCat, ...prev]);
     const handleUpdated = (updatedCat) => setCategories(prev => prev.map(c => c._id === updatedCat._id ? updatedCat : c));
     const handleDeleted = (id) => setCategories(prev => prev.filter(c => c._id !== id));
-    
+
     socket.on('categoryCreated', handleCreated);
     socket.on('categoryUpdated', handleUpdated);
     socket.on('categoryDeleted', handleDeleted);
-    
+
     return () => {
       socket.off('categoryCreated', handleCreated);
       socket.off('categoryUpdated', handleUpdated);
@@ -212,7 +212,7 @@ export default function CoursesAdminPage() {
   return (
     <div className="p-4 md:p-6 space-y-6 relative h-full flex flex-col">
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: '' })} />
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
@@ -241,13 +241,13 @@ export default function CoursesAdminPage() {
             </button>
           ))}
         </div>
-        
+
         {activeTab === 'categories' && (
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search categories..." 
+            <input
+              type="text"
+              placeholder="Search categories..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full sm:w-64 rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm focus:border-[#056852] focus:outline-none focus:ring-2 focus:ring-[#056852]/10 transition"
@@ -283,11 +283,11 @@ export default function CoursesAdminPage() {
                     </div>
                     <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${DEMAND_COLORS[cat.priority] || DEMAND_COLORS.Medium}`}>{cat.priority}</span>
                   </div>
-                  
+
                   {cat.description && (
                     <p className="text-sm text-slate-500 line-clamp-2 mb-4 h-10">{cat.description}</p>
                   )}
-                  
+
                   <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-auto">
                     <div className="flex gap-2">
                       <button type="button" onClick={() => handleOpenModal('edit', cat)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition" title="Edit Category"><Edit2 size={14} /></button>
@@ -311,7 +311,7 @@ export default function CoursesAdminPage() {
           )
         ) : (
           <div className="flex h-64 flex-col items-center justify-center text-center">
-             <p className="text-slate-500">Pending courses approval UI will go here.</p>
+            <p className="text-slate-500">Pending courses approval UI will go here.</p>
           </div>
         )}
       </div>
@@ -324,13 +324,13 @@ export default function CoursesAdminPage() {
               <h2 className="text-lg font-bold text-slate-900">{modalMode === 'add' ? 'Add New Category' : 'Edit Category'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 transition"><X size={18} /></button>
             </div>
-            
+
             <form onSubmit={handleSaveCategory} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Category Name *</label>
-                <input required type="text" value={currentCategory.name} onChange={e => setCurrentCategory({...currentCategory, name: e.target.value})} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-[#056852] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#056852]/20 transition" placeholder="e.g. Mathematics" />
+                <input required type="text" value={currentCategory.name} onChange={e => setCurrentCategory({ ...currentCategory, name: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-[#056852] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#056852]/20 transition" placeholder="e.g. Mathematics" />
               </div>
-              
+
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Image Upload</label>
                 <div className="flex items-center gap-4">
@@ -361,15 +361,15 @@ export default function CoursesAdminPage() {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Description</label>
-                <textarea value={currentCategory.description} onChange={e => setCurrentCategory({...currentCategory, description: e.target.value})} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-[#056852] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#056852]/20 transition min-h-[80px]" placeholder="Brief description of this category..."></textarea>
+                <textarea value={currentCategory.description} onChange={e => setCurrentCategory({ ...currentCategory, description: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-[#056852] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#056852]/20 transition min-h-[80px]" placeholder="Brief description of this category..."></textarea>
               </div>
-              
+
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Category Group / Type *</label>
-                <select value={currentCategory.type || 'Academics'} onChange={e => setCurrentCategory({...currentCategory, type: e.target.value})} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-[#056852] focus:bg-white focus:outline-none transition appearance-none">
+                <select value={currentCategory.type || 'Academics'} onChange={e => setCurrentCategory({ ...currentCategory, type: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-[#056852] focus:bg-white focus:outline-none transition appearance-none">
                   <option value="Academics">Academics</option>
                   <option value="Competitive Exams">Competitive Exams</option>
                   <option value="Arts & Music">Arts & Music</option>
@@ -382,7 +382,7 @@ export default function CoursesAdminPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Priority</label>
-                  <select value={currentCategory.priority} onChange={e => setCurrentCategory({...currentCategory, priority: e.target.value})} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-[#056852] focus:bg-white focus:outline-none transition appearance-none">
+                  <select value={currentCategory.priority} onChange={e => setCurrentCategory({ ...currentCategory, priority: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-[#056852] focus:bg-white focus:outline-none transition appearance-none">
                     <option value="High">High Demand</option>
                     <option value="Medium">Medium Demand</option>
                     <option value="Low">Low Demand</option>
@@ -390,13 +390,13 @@ export default function CoursesAdminPage() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Status</label>
-                  <select value={currentCategory.status} onChange={e => setCurrentCategory({...currentCategory, status: e.target.value})} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-[#056852] focus:bg-white focus:outline-none transition appearance-none">
+                  <select value={currentCategory.status} onChange={e => setCurrentCategory({ ...currentCategory, status: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-[#056852] focus:bg-white focus:outline-none transition appearance-none">
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>
               </div>
-              
+
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200 transition">Cancel</button>
                 <button type="submit" className="flex-1 rounded-xl bg-[#056852] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#045241] transition">Save Category</button>

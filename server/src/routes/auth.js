@@ -181,6 +181,91 @@ router.post('/login-otp', async (req, res) => {
   }
 });
 
+// ── Forgot Password OTP ────────────────────────────────────────────────────────
+router.post('/forgot-password-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail });
+
+    if (!user) {
+      return res.status(404).json({ message: 'No account found with this email.' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await execute('DELETE FROM otps WHERE email = ?', [cleanEmail]);
+    await OTP.create({ email: cleanEmail, otp, expiresAt });
+
+    if (process.env.SMTP_USER) {
+      try {
+        await transporter.sendMail({
+          from: `"VerifiedTutor" <${process.env.SMTP_USER}>`,
+          to: cleanEmail,
+          subject: 'VerifiedTutor — Password Reset OTP',
+          html: `
+            <div style="font-family: sans-serif; max-width: 480px; margin: auto; padding: 32px; border-radius: 16px; border: 1px solid #e2e8f0; background: #fff;">
+              <h2 style="color: #056852; margin-bottom: 8px;">Password Reset</h2>
+              <p style="color: #475569; font-size: 15px;">Your password reset OTP code is:</p>
+              <div style="font-size: 40px; font-weight: 900; color: #056852; letter-spacing: 8px; margin: 24px 0;">${otp}</div>
+              <p style="color: #94a3b8; font-size: 13px;">This OTP is valid for 10 minutes. Do not share it with anyone.</p>
+            </div>
+          `,
+        });
+      } catch (mailErr) {
+        console.warn('Mail send warning:', mailErr.message);
+      }
+    }
+
+    return res.json({ message: 'Password reset OTP sent to your email.' });
+  } catch (err) {
+    console.error('Forgot password OTP error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to send OTP' });
+  }
+});
+
+// ── Reset Password ─────────────────────────────────────────────────────────────
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: 'Email, OTP, and new password are required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const record = await OTP.findOne({ email: cleanEmail, otp, used: false });
+
+    if (!record) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    if (new Date() > new Date(record.expiresAt)) {
+      return res.status(400).json({ message: 'OTP has expired' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    const user = await User.findOne({ email: cleanEmail });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.findByIdAndUpdate(user.id, { password: hashedPassword });
+    await OTP.updateOne({ id: record.id }, { used: true });
+
+    return res.json({ message: 'Password has been reset successfully. You can now login with your new password.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to reset password' });
+  }
+});
+
 // ── Google OAuth ───────────────────────────────────────────────────────────────
 router.post('/google', async (req, res) => {
   try {

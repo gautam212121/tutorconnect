@@ -110,18 +110,14 @@ export default function DashboardLayout({ children }) {
     <div className="min-h-screen bg-[#f5f7fa]">
       {/* ── SIDEBAR ──────────────────────────────────────────────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-white border-r border-slate-100 shadow-sm transition-transform duration-300 md:translate-x-0 ${
-          mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-white border-r border-slate-100 shadow-sm transition-transform duration-300 md:translate-x-0 ${mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         {/* Logo */}
         <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-slate-100 px-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#056852] text-white shadow-md shadow-[#056852]/30">
-            <BookOpen size={16} strokeWidth={2.5} />
-          </div>
-          <span className="text-[15px] font-extrabold tracking-tight text-slate-900">
-            Verified<span className="text-[#056852]">Tutors</span>
-          </span>
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/verified-tutor-logo.png" alt="Verified Tutors" className="h-8 w-auto object-contain" />
+          </Link>
         </div>
 
         {/* User Info */}
@@ -149,11 +145,10 @@ export default function DashboardLayout({ children }) {
               <Link
                 key={item.key}
                 href={item.href}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12.5px] font-semibold transition-all duration-150 ${
-                  active
+                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12.5px] font-semibold transition-all duration-150 ${active
                     ? 'bg-[#056852] text-white shadow-md shadow-[#056852]/25'
                     : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <Icon
                   size={16}
@@ -161,9 +156,8 @@ export default function DashboardLayout({ children }) {
                 />
                 <span className="flex-1 truncate">{item.name}</span>
                 {item.badge ? (
-                  <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
-                    active ? 'bg-white/25 text-white' : 'bg-rose-500 text-white'
-                  }`}>
+                  <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${active ? 'bg-white/25 text-white' : 'bg-rose-500 text-white'
+                    }`}>
                     {item.badge}
                   </span>
                 ) : null}
@@ -195,12 +189,9 @@ export default function DashboardLayout({ children }) {
       {/* ── MOBILE HEADER ────────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:hidden">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#056852] text-white">
-            <BookOpen size={14} />
-          </div>
-          <span className="text-[14px] font-extrabold text-slate-900">
-            Verified<span className="text-[#056852]">Tutors</span>
-          </span>
+          <Link href="/" className="flex items-center">
+            <img src="/verified-tutor-logo-icon.png" alt="Verified Tutors" className="h-7 w-auto object-contain" />
+          </Link>
         </div>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (

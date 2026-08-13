@@ -140,7 +140,10 @@ export default function Navbar({ onOpenHowItWorks }) {
       <div className="flex items-center justify-between rounded-full border border-slate-200/80 bg-white/95 px-5 py-3 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] backdrop-blur-md transition-all">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <img src="/verified-tutor-logo.png" alt="Verified Tutor" className="h-9 w-auto object-contain transition group-hover:scale-105" />
+          {/* Desktop logo */}
+          <img src="/verified-tutor-logo.png" alt="Verified Tutor" className="hidden md:block h-9 w-auto object-contain transition group-hover:scale-105" />
+          {/* Mobile logo icon */}
+          <img src="/verified-tutor-logo-icon.png" alt="Verified Tutor" className="block md:hidden h-9 w-auto object-contain transition group-hover:scale-105" />
         </Link>
 
         {/* Center Navigation Links */}

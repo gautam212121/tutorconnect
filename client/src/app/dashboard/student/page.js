@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import ScheduleView from './components/ScheduleView';
 import {
   Search, MapPin, BookOpen, GraduationCap, Star, Calendar, ArrowRight,
   CreditCard, MessageSquare, Shield, BadgeCheck, ChevronRight, Heart,
@@ -11,7 +13,9 @@ import {
 
 const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
-export default function StudentDashboard() {
+function StudentDashboardContent() {
+  const searchParams = useSearchParams();
+  const section = searchParams.get('section');
   const [user, setUser] = useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +65,15 @@ export default function StudentDashboard() {
   const upcomingSessions = dashboard?.upcomingSessions || [];
   const recentBookings = dashboard?.recentBookings || [];
   const mySubjects = dashboard?.subjects || [];
+  const assignedTutors = dashboard?.assignedTutors || [];
+
+  if (section === 'schedule') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <ScheduleView user={user} assignedTutors={assignedTutors} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
@@ -246,6 +259,50 @@ export default function StudentDashboard() {
         </div>
       </div>
 
+      {/* ── Assigned Tutor + My Subjects ─────────────────────────────────── */}
+      <div className="grid lg:grid-cols-3 gap-4 mb-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-800">Assigned Tutor</h3>
+            <span className="text-[10px] text-slate-400">Live from bookings</span>
+          </div>
+          {assignedTutors.length === 0 ? (
+            <div className="text-center py-8">
+              <Users size={32} className="mx-auto text-slate-200 mb-2" />
+              <p className="text-xs text-slate-400">No assigned tutor yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {assignedTutors.map((tutor, idx) => (
+                <div key={idx} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">{tutor.tutorName || 'Assigned Tutor'}</p>
+                      <p className="text-[10px] text-slate-500">{tutor.selectedSubjects?.join(', ') || tutor.subject || 'General subject'}</p>
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">{tutor.status || 'Pending'}</span>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-[11px] text-slate-500 sm:grid-cols-3">
+                    <div><span className="block text-[9px] uppercase tracking-wide text-slate-400">Class</span>{tutor.grade || 'N/A'}</div>
+                    <div><span className="block text-[9px] uppercase tracking-wide text-slate-400">Location</span>{tutor.location || 'N/A'}</div>
+                    <div><span className="block text-[9px] uppercase tracking-wide text-slate-400">Fee</span>₹{Number(tutor.amount || 0).toLocaleString()}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Need Help */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <h3 className="text-sm font-bold text-slate-800 mb-2">Need Help?</h3>
+          <p className="text-xs text-slate-400 mb-4">Our support team is here to help you.</p>
+          <button className="flex items-center gap-2 w-full px-4 py-2.5 bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition">
+            <MessageSquare size={14} className="text-emerald-600" /> Chat with Support
+          </button>
+        </div>
+      </div>
+
       {/* ── My Subjects + Need Help ────────────────────────────────────────── */}
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
         {/* My Subjects */}
@@ -272,14 +329,6 @@ export default function StudentDashboard() {
           )}
         </div>
 
-        {/* Need Help */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
-          <h3 className="text-sm font-bold text-slate-800 mb-2">Need Help?</h3>
-          <p className="text-xs text-slate-400 mb-4">Our support team is here to help you.</p>
-          <button className="flex items-center gap-2 w-full px-4 py-2.5 bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition">
-            <MessageSquare size={14} className="text-emerald-600" /> Chat with Support
-          </button>
-        </div>
       </div>
 
       {/* ── Trust Footer ───────────────────────────────────────────────────── */}
@@ -306,5 +355,13 @@ export default function StudentDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StudentDashboard() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+      <StudentDashboardContent />
+    </Suspense>
   );
 }

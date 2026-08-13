@@ -617,3 +617,47 @@ INSERT INTO `subscription_plans` (`id`, `name`, `price`, `duration`, `durationLa
 INSERT INTO `blogs` (`id`, `title`, `excerpt`, `content`, `category`, `author`, `role`, `readTime`, `image`) VALUES
 (1, 'How to Choose the Right Home Tutor for Your Child', 'Finding the perfect tutor goes beyond qualifications. Here are key things parents should evaluate before hiring.', 'Finding the perfect tutor for your child is a crucial decision that can significantly impact their academic journey and self-confidence. While academic qualifications are important, they are only part of the equation.\n\n### 1. Identify Your Goals\nBefore you start searching, clearly define what you want to achieve. Is your child struggling to keep up, or do they need help preparing for a specific competitive exam like JEE or NEET?\n\n### 2. Look for Teaching Experience\nA tutor might be a subject expert, but explaining complex topics to a young student requires patience and pedagogical skills.\n\n### 3. Check for Safety & Verifications\nSince a home tutor will be coming to your house, safety is paramount.', 'Parents Guide', 'Sunita Sharma', 'Parenting Consultant', '4 min read', 'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=800&auto=format&fit=crop&q=60'),
 (2, '5 Effective Study Habits for Class 10 Board Exams', 'Prepare strategically for your boards. Learn how to manage time, structure study notes, and write optimal responses.', 'Board exams can be stressful, but with the right study strategies, you can ace them with physical colors.\n\n### 1. Use Active Recall\nInstead of just reading and re-reading your textbooks, test yourself.\n\n### 2. Follow the Pomodoro Technique\nStudy in focused bursts of 25 minutes, followed by a 5-minute break.\n\n### 3. Solve Mock Papers Under Real Exam Conditions\nSuccess in board exams isn\'t just about what you know; it\'s also about managing your time.', 'Study Tips', 'Rahul Verma', 'Physics & Maths Tutor', '6 min read', 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&auto=format&fit=crop&q=60');
+  FOREIGN KEY (\processedBy\) REFERENCES \users\ (\id\) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for table \schedules\
+-- --------------------------------------------------------
+DROP TABLE IF EXISTS \schedules\;
+CREATE TABLE \schedules\ (
+  \id\ INT AUTO_INCREMENT PRIMARY KEY,
+  \ooking\ INT NULL,
+  \student\ INT NOT NULL,
+  \	utor\ INT NOT NULL,
+  \date\ DATE NOT NULL,
+  \startTime\ TIME NOT NULL,
+  \endTime\ TIME NOT NULL,
+  \subject\ VARCHAR(100) NULL,
+  \grade\ VARCHAR(100) NULL,
+  \selectedSubjects\ JSON NULL,
+  \duration\ INT DEFAULT 60,
+  \location\ VARCHAR(255) NULL,
+  \ddressFull\ TEXT NULL,
+  \ddressArea\ VARCHAR(100) NULL,
+  \ddressCity\ VARCHAR(100) NULL,
+  \ddressPincode\ VARCHAR(20) NULL,
+  \status\ ENUM('Pending', 'Approved', 'Rejected', 'Cancelled', 'Completed') DEFAULT 'Pending',
+  \
+otes\ TEXT NULL,
+  \dminNotes\ TEXT NULL,
+  \pprovedBy\ INT NULL,
+  \pprovedAt\ DATETIME NULL,
+  \ejectedBy\ INT NULL,
+  \ejectedAt\ DATETIME NULL,
+  \createdAt\ DATETIME DEFAULT CURRENT_TIMESTAMP,
+  \updatedAt\ DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY \idx_student_date\ (\student\, \date\),
+  KEY \idx_tutor_date\ (\	utor\, \date\),
+  KEY \idx_booking_status\ (\ooking\, \status\),
+  KEY \idx_status\ (\status\),
+  FOREIGN KEY (\ooking\) REFERENCES \ookings\ (\id\) ON DELETE SET NULL,
+  FOREIGN KEY (\student\) REFERENCES \users\ (\id\) ON DELETE CASCADE,
+  FOREIGN KEY (\	utor\) REFERENCES \users\ (\id\) ON DELETE CASCADE,
+  FOREIGN KEY (\pprovedBy\) REFERENCES \users\ (\id\) ON DELETE SET NULL,
+  FOREIGN KEY (\ejectedBy\) REFERENCES \users\ (\id\) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

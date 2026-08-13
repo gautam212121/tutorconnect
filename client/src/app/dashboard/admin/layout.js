@@ -6,24 +6,25 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   BookOpen, LayoutDashboard, Users, GraduationCap, BookOpen as CourseIcon,
   Calendar, CreditCard, Star, Bell, FileText, Settings,
-  ChevronDown, Menu, Search, LogOut, ExternalLink, X, Briefcase, Mail,
+  ChevronDown, Menu, Search, LogOut, ExternalLink, X, Briefcase, Mail, Clock,
 } from 'lucide-react';
 
 
 const NAV = [
-  { id: 'dashboard',     label: 'Dashboard',     href: '/dashboard/admin',              icon: LayoutDashboard },
-  { id: 'tutors',        label: 'Tutors',         href: '/dashboard/admin/tutors',       icon: Users },
-  { id: 'careers',       label: 'Careers',        href: '/dashboard/admin/careers',      icon: Briefcase },
-  { id: 'students',      label: 'Students',       href: '/dashboard/admin/students',     icon: GraduationCap },
-  { id: 'courses',       label: 'Courses',        href: '/dashboard/admin/courses',      icon: CourseIcon },
-  { id: 'bookings',      label: 'Bookings',       href: '/dashboard/admin/bookings',     icon: Calendar },
-  { id: 'payments',      label: 'Payments',       href: '/dashboard/admin/payments',     icon: CreditCard },
-  { id: 'reviews',       label: 'Reviews',        href: '/dashboard/admin/reviews',      icon: Star },
-  { id: 'newsletter',    label: 'Newsletter',     href: '/dashboard/admin/newsletter',   icon: Mail },
-  { id: 'blogs',         label: 'Blogs',          href: '/dashboard/admin/blogs',        icon: FileText },
-  { id: 'notifications', label: 'Notifications',  href: '/dashboard/admin/notifications',icon: Bell, badge: 12 },
-  { id: 'reports',       label: 'Reports',        href: '/dashboard/admin/reports',      icon: FileText },
-  { id: 'settings',      label: 'Settings',       href: '/dashboard/admin/settings',     icon: Settings },
+  { id: 'dashboard', label: 'Dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
+  { id: 'tutors', label: 'Tutors', href: '/dashboard/admin/tutors', icon: Users },
+  { id: 'careers', label: 'Careers', href: '/dashboard/admin/careers', icon: Briefcase },
+  { id: 'students', label: 'Students', href: '/dashboard/admin/students', icon: GraduationCap },
+  { id: 'courses', label: 'Courses', href: '/dashboard/admin/courses', icon: CourseIcon },
+  { id: 'bookings', label: 'Bookings', href: '/dashboard/admin/bookings', icon: Calendar },
+  { id: 'schedules', label: 'Schedules', href: '/dashboard/admin/schedules', icon: Clock },
+  { id: 'payments', label: 'Payments', href: '/dashboard/admin/payments', icon: CreditCard },
+  { id: 'reviews', label: 'Reviews', href: '/dashboard/admin/reviews', icon: Star },
+  { id: 'newsletter', label: 'Newsletter', href: '/dashboard/admin/newsletter', icon: Mail },
+  { id: 'blogs', label: 'Blogs', href: '/dashboard/admin/blogs', icon: FileText },
+  { id: 'notifications', label: 'Notifications', href: '/dashboard/admin/notifications', icon: Bell, badge: 12 },
+  { id: 'reports', label: 'Reports', href: '/dashboard/admin/reports', icon: FileText },
+  { id: 'settings', label: 'Settings', href: '/dashboard/admin/settings', icon: Settings },
 ];
 
 
@@ -36,6 +37,15 @@ export default function AdminLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expanded, setExpanded] = useState({});
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('verifiedtutor-user');
@@ -53,6 +63,7 @@ export default function AdminLayout({ children }) {
       }
     });
     setExpanded(auto);
+    setMobileOpen(false); // Close sidebar drawer on route navigation
   }, [pathname]);
 
   const handleLogout = () => {
@@ -78,7 +89,7 @@ export default function AdminLayout({ children }) {
     </div>
   );
 
-  const sidebarW = collapsed ? 72 : 260;
+  const sidebarW = isMobile ? 260 : (collapsed ? 72 : 260);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
@@ -96,16 +107,13 @@ export default function AdminLayout({ children }) {
         {/* Logo Row */}
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-4">
           {!collapsed ? (
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e6f7f2] text-[#056852] border border-[#b2e8d8]">
-                <BookOpen size={17} />
-              </div>
-              <span className="font-extrabold text-slate-900 text-[15px]">Verified<span className="text-[#056852]">Tutors</span></span>
+            <Link href="/" className="flex items-center">
+              <img src="/verified-tutor-logo.png" alt="Verified Tutors" className="h-8 w-auto object-contain" />
             </Link>
           ) : (
-            <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-[#e6f7f2] text-[#056852] border border-[#b2e8d8]">
-              <BookOpen size={17} />
-            </div>
+            <Link href="/" className="mx-auto flex h-8 w-8 items-center justify-center">
+              <img src="/verified-tutor-logo-icon.png" alt="VT" className="h-7 w-auto object-contain" />
+            </Link>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
@@ -147,9 +155,8 @@ export default function AdminLayout({ children }) {
                   <Link
                     href={item.href}
                     title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-semibold transition-all ${
-                      active ? 'bg-[#056852] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-semibold transition-all ${active ? 'bg-[#056852] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
                   >
                     <Icon size={17} className={`shrink-0 ${active ? 'text-white' : 'text-slate-500'}`} />
                     {!collapsed && (
@@ -167,9 +174,8 @@ export default function AdminLayout({ children }) {
                   <>
                     <button
                       onClick={() => setExpanded(p => ({ ...p, [item.id]: !p[item.id] }))}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-semibold transition-all ${
-                        parentActive ? 'bg-[#e6f7f2] text-[#056852]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                      }`}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-semibold transition-all ${parentActive ? 'bg-[#e6f7f2] text-[#056852]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
                     >
                       <Icon size={17} className={`shrink-0 ${parentActive ? 'text-[#056852]' : 'text-slate-500'}`} />
                       {!collapsed && (
@@ -185,11 +191,10 @@ export default function AdminLayout({ children }) {
                           <Link
                             key={child.href}
                             href={child.href}
-                            className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-[11px] font-medium transition ${
-                              isActive(child.href)
-                                ? 'bg-[#056852]/10 text-[#056852] font-semibold'
-                                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                            }`}
+                            className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-[11px] font-medium transition ${isActive(child.href)
+                              ? 'bg-[#056852]/10 text-[#056852] font-semibold'
+                              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                              }`}
                           >
                             <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isActive(child.href) ? 'bg-[#056852]' : 'bg-slate-300'}`} />
                             {child.label}
@@ -220,7 +225,7 @@ export default function AdminLayout({ children }) {
 
       {/* ─── MAIN AREA ─── */}
       <div
-        style={{ marginLeft: sidebarW }}
+        style={{ marginLeft: isMobile ? 0 : sidebarW }}
         className="flex flex-1 flex-col overflow-hidden transition-all duration-300"
       >
         {/* Header */}

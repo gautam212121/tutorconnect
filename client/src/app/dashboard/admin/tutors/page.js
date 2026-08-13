@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Search, Filter, CheckCircle2, XCircle, AlertTriangle, Eye, Trash2, Ban, Star, Shield, UserCheck, MoreVertical, ChevronDown, User, Upload } from 'lucide-react';
+import Link from 'next/link';
 import { adminApi } from '../../../../lib/api';
 import { useSocket } from '../../../../hooks/useSocket';
 import { getImageUrl } from '../../../../lib/image';
@@ -11,12 +12,21 @@ const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 const MOCK_TUTORS = [];
 
 const statusStyles = {
-  verified: 'bg-emerald-100 text-emerald-700',
-  pending: 'bg-amber-100 text-amber-700',
-  suspended: 'bg-rose-100 text-rose-700',
-  rejected: 'bg-slate-100 text-slate-500',
-  featured: 'bg-blue-100 text-blue-700',
+  active: { cls: 'bg-emerald-100 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
+  verified: { cls: 'bg-emerald-100 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
+  pending: { cls: 'bg-amber-100 text-amber-700 border border-amber-200', dot: 'bg-amber-500' },
+  deactivated: { cls: 'bg-slate-100 text-slate-500 border border-slate-200', dot: 'bg-slate-500' },
+  suspended: { cls: 'bg-rose-100 text-rose-600 border border-rose-200', dot: 'bg-rose-500' },
+  rejected: { cls: 'bg-red-100 text-red-600 border border-red-200', dot: 'bg-red-500' },
 };
+
+const STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'active', label: 'Active' },
+  { value: 'deactivated', label: 'Deactivated' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'suspended', label: 'Suspended' },
+];
 
 const normalizeTutorSubjects = (subjects) => {
   if (Array.isArray(subjects)) return subjects.filter(Boolean);
@@ -33,8 +43,8 @@ export default function TutorsAdminPage() {
   const [filter, setFilter] = useState('all');
   const [actionMenu, setActionMenu] = useState(null);
   const [selectedTab, setSelectedTab] = useState('all');
-  const [selectedTutor, setSelectedTutor] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [changingStatus, setChangingStatus] = useState(null); // tutor id whose dropdown is open
   const [newTutor, setNewTutor] = useState({
     name: '', email: '', password: '', mobile: '', location: '',
     headline: 'Tutor', experience: '1 year', subjects: '', price: 500,
@@ -65,6 +75,14 @@ export default function TutorsAdminPage() {
   useEffect(() => {
     fetchTutors();
   }, []);
+
+  // Close status dropdown on outside click
+  useEffect(() => {
+    if (!changingStatus) return;
+    const close = () => setChangingStatus(null);
+    document.addEventListener('click', close, true);
+    return () => document.removeEventListener('click', close, true);
+  }, [changingStatus]);
 
   useEffect(() => {
     if (!socket) return;
@@ -126,13 +144,14 @@ export default function TutorsAdminPage() {
 
   const handleAction = async (id, action) => {
     try {
-      const updated = await adminApi.updateUser(id, { status: action, verified: action === 'verified' });
+      const updated = await adminApi.updateUser(id, { status: action, verified: action === 'verified' || action === 'active' });
       if (updated) {
         setApiTutors(prev => prev.map(t => t.id === id ? { ...t, status: action } : t));
       }
     } catch (err) {
       console.error(err);
     }
+    setChangingStatus(null);
     setActionMenu(null);
   };
 
@@ -191,7 +210,9 @@ export default function TutorsAdminPage() {
   const tabs = [
     { id: 'all', label: 'All Tutors', count: allTutors.length },
     { id: 'pending', label: 'Pending', count: allTutors.filter((t) => t.status === 'pending').length },
-    { id: 'verified', label: 'Verified', count: allTutors.filter((t) => t.status === 'verified').length },
+    { id: 'active', label: 'Active', count: allTutors.filter((t) => t.status === 'active' || t.status === 'verified').length },
+    { id: 'deactivated', label: 'Deactivated', count: allTutors.filter((t) => t.status === 'deactivated').length },
+    { id: 'rejected', label: 'Rejected', count: allTutors.filter((t) => t.status === 'rejected').length },
     { id: 'suspended', label: 'Suspended', count: allTutors.filter((t) => t.status === 'suspended').length },
   ];
 
@@ -217,18 +238,24 @@ export default function TutorsAdminPage() {
         </button>
       </div>
 
-      {/* Stats Row */}
+      {/* Stats Row — clickable to filter */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'Total Tutors', value: allTutors.length, color: 'text-blue-600 bg-blue-50' },
-          { label: 'Pending Approval', value: allTutors.filter(t => t.status === 'pending').length, color: 'text-amber-600 bg-amber-50' },
-          { label: 'Verified', value: allTutors.filter(t => t.status === 'verified').length, color: 'text-emerald-600 bg-emerald-50' },
-          { label: 'Suspended', value: allTutors.filter(t => t.status === 'suspended').length, color: 'text-rose-600 bg-rose-50' },
+          { label: 'Total Tutors', value: allTutors.length, tab: 'all', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+          { label: 'Pending', value: allTutors.filter(t => t.status === 'pending').length, tab: 'pending', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+          { label: 'Active', value: allTutors.filter(t => t.status === 'verified' || t.status === 'active').length, tab: 'active', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+          { label: 'Suspended', value: allTutors.filter(t => t.status === 'suspended').length, tab: 'suspended', color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
         ].map((s, i) => (
-          <div key={i} className={`rounded-2xl p-3 ${s.color.split(' ')[1]} border border-slate-100`}>
+          <button
+            key={i}
+            onClick={() => setSelectedTab(s.tab)}
+            className={`rounded-2xl p-3 ${s.bg} border ${s.border} text-left hover:opacity-80 transition cursor-pointer ${
+              selectedTab === s.tab ? 'ring-2 ring-offset-1 ring-current opacity-100' : ''
+            }`}
+          >
             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{s.label}</p>
-            <p className={`text-2xl font-extrabold mt-0.5 ${s.color.split(' ')[0]}`}>{s.value}</p>
-          </div>
+            <p className={`text-2xl font-extrabold mt-0.5 ${s.color}`}>{s.value}</p>
+          </button>
         ))}
       </div>
 
@@ -312,37 +339,48 @@ export default function TutorsAdminPage() {
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell font-semibold text-slate-700">{t.students}</td>
                   <td className="px-4 py-3 hidden xl:table-cell font-semibold text-emerald-700">{t.revenue}</td>
+                  {/* Status — interactive dropdown */}
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${statusStyles[t.status] || statusStyles.pending}`}>
-                      {t.status}
-                    </span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setChangingStatus(changingStatus === t.id ? null : t.id)}
+                        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase border transition hover:opacity-80 ${
+                          (statusStyles[t.status] || statusStyles.pending).cls
+                        }`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${(statusStyles[t.status] || statusStyles.pending).dot}`} />
+                        {t.status}
+                        <svg className="ml-0.5 h-3 w-3 opacity-60" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
+                      </button>
+                      {changingStatus === t.id && (
+                        <div className="absolute left-0 top-full mt-1 z-50 min-w-[130px] rounded-xl border border-slate-200 bg-white shadow-xl py-1">
+                          {STATUS_OPTIONS.map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => handleAction(t.id, opt.value)}
+                              className={`flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition ${
+                                t.status === opt.value ? 'text-[#056852] bg-emerald-50' : 'text-slate-700'
+                              }`}
+                            >
+                              <span className={`h-2 w-2 rounded-full ${(statusStyles[opt.value] || statusStyles.pending).dot}`} />
+                              {opt.label}
+                              {t.status === opt.value && <span className="ml-auto text-[10px]">✓</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      {t.status === 'pending' && (
-                        <>
-                          <button onClick={() => handleAction(t.id, 'verified')} className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition" title="Approve">
-                            <CheckCircle2 size={14} />
-                          </button>
-                          <button onClick={() => handleAction(t.id, 'rejected')} className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-rose-500 hover:bg-rose-200 transition" title="Reject">
-                            <XCircle size={14} />
-                          </button>
-                        </>
-                      )}
-                      {t.status === 'verified' && (
-                        <button onClick={() => handleAction(t.id, 'suspended')} className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-600 hover:bg-amber-200 transition" title="Suspend">
-                          <Ban size={14} />
-                        </button>
-                      )}
-                      {t.status === 'suspended' && (
-                        <button onClick={() => handleAction(t.id, 'verified')} className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition" title="Unblock">
-                          <Shield size={14} />
-                        </button>
-                      )}
-                      <button onClick={() => setSelectedTutor(t)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition" title="View Profile">
+                      <Link href={`/dashboard/admin/tutors/${t.id}`} className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition" title="View Profile">
                         <Eye size={14} />
-                      </button>
-                      <button onClick={() => handleAction(t.id, 'rejected')} className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition" title="Delete">
+                      </Link>
+                      <button
+                        onClick={() => handleAction(t.id, 'rejected')}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition"
+                        title="Delete"
+                      >
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -362,101 +400,6 @@ export default function TutorsAdminPage() {
           </table>
         </div>
       </div>
-
-      {/* Tutor Details Modal */}
-      {selectedTutor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl rounded-[24px] bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#056852]/10 text-sm font-bold text-[#056852]">
-                  {selectedTutor.name.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">{selectedTutor.name}</h3>
-                  <p className="text-xs font-medium text-slate-500">{selectedTutor.email}</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedTutor(null)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition">
-                <XCircle size={20} />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto space-y-6">
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Mobile</p>
-                  <p className="text-sm font-semibold text-slate-900">{selectedTutor.mobile || 'N/A'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Location</p>
-                  <p className="text-sm font-semibold text-slate-900">{selectedTutor.location || 'N/A'}</p>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Qualification</p>
-                  <p className="text-sm font-semibold text-slate-900">{selectedTutor.qualification || 'N/A'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Experience</p>
-                  <p className="text-sm font-semibold text-slate-900">{selectedTutor.experience || 'N/A'}</p>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Subjects & Classes</p>
-                <div className="flex flex-wrap gap-2">
-                  {(selectedTutor.subjects || []).map((s, i) => <span key={i} className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">{s}</span>)}
-                  {(selectedTutor.classesTaught || []).map((c, i) => <span key={`c${i}`} className="rounded-lg bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">{c}</span>)}
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Teaching Mode</p>
-                  <p className="text-sm font-semibold text-slate-900">{(selectedTutor.mode || []).join(', ') || 'N/A'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Languages</p>
-                  <p className="text-sm font-semibold text-slate-900">{(selectedTutor.languages || []).join(', ') || 'N/A'}</p>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Expected Fees</p>
-                  <p className="text-sm font-semibold text-emerald-600">₹{selectedTutor.price || 0} / {selectedTutor.feeType || 'Hr'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Availability</p>
-                  <p className="text-sm font-semibold text-slate-900">{(selectedTutor.availableDays || []).join(', ')} ({selectedTutor.availableTimeSlots || 'N/A'})</p>
-                </div>
-              </div>
-
-              {selectedTutor.address && (
-                <div className="border-t border-slate-100 pt-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Full Address</p>
-                  <p className="text-sm font-semibold text-slate-700">
-                    {[selectedTutor.address.area, selectedTutor.address.city, selectedTutor.address.pincode].filter(Boolean).join(', ') || 'Not Provided'}
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            <div className="border-t border-slate-100 p-4 bg-slate-50/50 flex justify-end gap-2">
-              <button onClick={() => setSelectedTutor(null)} className="rounded-xl px-5 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 transition">Close</button>
-              {selectedTutor.status === 'pending' && (
-                <>
-                  <button onClick={() => { handleAction(selectedTutor.id, 'rejected'); setSelectedTutor(null); }} className="rounded-xl bg-rose-100 px-5 py-2 text-sm font-bold text-rose-600 hover:bg-rose-200 transition">Reject</button>
-                  <button onClick={() => { handleAction(selectedTutor.id, 'verified'); setSelectedTutor(null); }} className="rounded-xl bg-emerald-500 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-600 transition shadow-md shadow-emerald-500/20">Approve Tutor</button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Add Tutor Modal */}
       {isAddModalOpen && (

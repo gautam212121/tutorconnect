@@ -10,7 +10,7 @@ export default function AdminCareersPage() {
   const [search, setSearch] = useState('');
   const [selectedTab, setSelectedTab] = useState('all');
   const [loading, setLoading] = useState(true);
-  
+
   // Modal State
   const [selectedApp, setSelectedApp] = useState(null);
 
@@ -37,7 +37,7 @@ export default function AdminCareersPage() {
       const token = localStorage.getItem('verifiedtutor-token');
       const res = await fetch(`${API}/api/v1/admin/careers/${id}`, {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -54,8 +54,8 @@ export default function AdminCareersPage() {
 
   const filtered = applications.filter(app => {
     const matchTab = selectedTab === 'all' || app.status === selectedTab;
-    const matchSearch = !search || 
-      app.name?.toLowerCase().includes(search.toLowerCase()) || 
+    const matchSearch = !search ||
+      app.name?.toLowerCase().includes(search.toLowerCase()) ||
       app.email?.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
@@ -96,16 +96,14 @@ export default function AdminCareersPage() {
             <button
               key={tab.id}
               onClick={() => setSelectedTab(tab.id)}
-              className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
-                selectedTab === tab.id
+              className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${selectedTab === tab.id
                   ? 'border-[#056852] text-[#056852]'
                   : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-              }`}
+                }`}
             >
               {tab.label}
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                selectedTab === tab.id ? 'bg-[#056852] text-white' : 'bg-slate-100 text-slate-500'
-              }`}>{count}</span>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${selectedTab === tab.id ? 'bg-[#056852] text-white' : 'bg-slate-100 text-slate-500'
+                }`}>{count}</span>
             </button>
           )
         })}
@@ -154,7 +152,7 @@ export default function AdminCareersPage() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-3 flex-1">
                 <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-100">
                   <span className="text-slate-500">Education</span>
@@ -215,7 +213,7 @@ export default function AdminCareersPage() {
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-6 bg-white">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
+
                 {/* Left Column (Main Details) */}
                 <div className="lg:col-span-2 space-y-8">
                   {/* Teaching Profile */}
@@ -243,7 +241,7 @@ export default function AdminCareersPage() {
                       <div><p className="text-[10px] font-bold text-slate-400 uppercase">Certifications</p><p className="text-sm font-semibold text-slate-800">{selectedApp.skills?.certifications || 'None'}</p></div>
                     </div>
                   </section>
-                  
+
                   {/* Address & Availability */}
                   <section>
                     <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
@@ -279,7 +277,7 @@ export default function AdminCareersPage() {
                           <Download size={14} className="text-slate-400 group-hover:text-emerald-500" />
                         </a>
                       ) : <div className="text-xs text-slate-400 italic">No resume uploaded</div>}
-                      
+
                       {selectedApp.documents?.idUrl ? (
                         <a href={selectedApp.documents.idUrl} download="id.jpg" className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 hover:border-emerald-300 group transition">
                           <div className="flex items-center gap-2"><CheckCircle2 size={16} className="text-purple-500" /><span className="text-xs font-bold text-slate-700">Govt ID Card</span></div>
@@ -296,7 +294,7 @@ export default function AdminCareersPage() {
             {/* Modal Footer (Action Buttons) */}
             <div className="p-6 border-t border-slate-100 bg-white flex flex-col sm:flex-row gap-3 justify-end items-center">
               <span className="text-xs font-medium text-slate-500 mr-auto flex items-center gap-1.5"><Calendar size={14} /> Applied on {new Date(selectedApp.createdAt).toLocaleDateString()} at {new Date(selectedApp.createdAt).toLocaleTimeString()}</span>
-              
+
               <button onClick={() => handleStatusChange(selectedApp._id, 'rejected')} className="w-full sm:w-auto px-6 py-2.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 font-bold text-sm hover:bg-rose-100 transition">
                 Reject Application
               </button>

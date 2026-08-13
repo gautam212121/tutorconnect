@@ -156,6 +156,34 @@ router.get('/users', async (req, res) => {
   }
 });
 
+router.get('/users/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    // Also aggregate booking and schedule info for student/tutor if needed
+    let bookings = [];
+    let assignedTutors = [];
+    let assignedStudents = [];
+    
+    if (user.role === 'student') {
+      bookings = await Booking.find({ student: user._id });
+      const tutorIds = [...new Set(bookings.filter(b => b.tutor).map(b => b.tutor))];
+      assignedTutors = await Promise.all(tutorIds.map(id => User.findById(id)));
+      assignedTutors = assignedTutors.filter(Boolean);
+    } else if (user.role === 'tutor') {
+      bookings = await Booking.find({ tutor: user._id });
+      const studentIds = [...new Set(bookings.filter(b => b.student).map(b => b.student))];
+      assignedStudents = await Promise.all(studentIds.map(id => User.findById(id)));
+      assignedStudents = assignedStudents.filter(Boolean);
+    }
+    
+    res.json({ user, bookings, assignedTutors, assignedStudents });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 router.post('/users', async (req, res) => {
   try {
     const userData = { ...req.body };
@@ -243,6 +271,32 @@ router.get('/bookings', async (req, res) => {
     const bookings = await Booking.find();
     const callbacks = await CallbackRequest.find();
 
+    // Populate student user data into each booking's studentSnapshot
+    const populatedBookings = await Promise.all(bookings.map(async (b) => {
+      let snapshot = b.studentSnapshot || {};
+
+      // If name or phone is missing in snapshot, fetch from users table
+      if (!snapshot.name || !snapshot.phone) {
+        const studentUser = b.student ? await User.findById(b.student) : null;
+        if (studentUser) {
+          snapshot = {
+            name: snapshot.name || studentUser.name || 'Unknown',
+            phone: snapshot.phone || studentUser.mobile || 'N/A',
+            email: snapshot.email || studentUser.email || '',
+            grade: snapshot.grade || snapshot.classLevel || studentUser.grade || '',
+            classLevel: snapshot.classLevel || snapshot.grade || studentUser.grade || '',
+            subject: snapshot.subject || b.subject || '',
+            location: snapshot.location || studentUser.address?.city || studentUser.address?.full || studentUser.location || '',
+            mode: snapshot.mode || b.mode || 'Home',
+            address: snapshot.address || studentUser.address?.full || studentUser.address?.city || '',
+            role: 'student',
+          };
+        }
+      }
+
+      return { ...b, studentSnapshot: snapshot };
+    }));
+
     const formattedCallbacks = (callbacks || []).map(c => ({
       _id: c._id,
       id: c._id ? c._id.toString() : c.id,
@@ -271,7 +325,7 @@ router.get('/bookings', async (req, res) => {
       isCallback: true,
     }));
 
-    const combined = [...bookings, ...formattedCallbacks];
+    const combined = [...populatedBookings, ...formattedCallbacks];
     combined.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
     res.json(combined);

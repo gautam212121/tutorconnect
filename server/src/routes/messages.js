@@ -89,17 +89,44 @@ router.post('/', requireAnyRole(['student', 'tutor', 'admin']), async (req, res)
     if (req.user.role !== 'admin' && String(req.user.id) !== String(from)) {
       return res.status(403).json({ message: 'Access denied' });
     }
-    const msg = await Message.create({
-      from, to,
-      booking: bookingId || undefined,
-      type: type || 'text',
+
+    const sender = await User.findById(from);
+    const recipients = new Set();
+    if (to) recipients.add(String(to));
+
+    if (sender?.role === 'tutor' || sender?.role === 'student') {
+      const otherParty = to && String(to) !== String(from) ? to : null;
+      if (otherParty) recipients.add(String(otherParty));
+      const adminUser = await User.findOne({ role: 'admin' });
+      if (adminUser) recipients.add(String(adminUser._id || adminUser.id));
+    }
+
+    const createdMessages = [];
+    for (const recipientId of recipients) {
+      if (!recipientId || String(recipientId) === String(from)) continue;
+      const msg = await Message.create({
+        from, to: recipientId,
+        booking: bookingId || undefined,
+        type: type || 'text',
+        content,
+        meetUrl: meetUrl || undefined,
+      });
+      const populated = msg ? { ...msg } : null;
+      if (populated) {
+        populated.from = await User.findById(from);
+        populated.to = await User.findById(recipientId);
+        createdMessages.push(populated);
+        getIo(req)?.emit('newMessage', populated);
+      }
+    }
+
+    const primaryMessage = createdMessages[0] || {
+      from: sender,
+      to: to ? await User.findById(to) : null,
       content,
-      meetUrl: meetUrl || undefined,
-    });
-    msg.from = await User.findById(from);
-    msg.to = await User.findById(to);
-    getIo(req)?.emit('newMessage', msg);
-    res.status(201).json(msg);
+      type: type || 'text',
+    };
+    res.status(201).json(primaryMessage);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

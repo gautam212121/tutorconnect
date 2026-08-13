@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   CheckCircle2, XCircle, RefreshCw, Search, Clock, Users,
   Calendar, Filter, Plus, FileDown, BarChart3, UserPlus, Bell,
-  Phone, MapPin, BookOpen, Eye, X, Check, AlertCircle, Sparkles
+  Phone, MapPin, BookOpen, Eye, X, Check, AlertCircle, Sparkles, Star
 } from 'lucide-react';
 import { adminApi } from '../../../../lib/api';
 
@@ -43,6 +43,24 @@ const getLocation = (booking) => {
 
 const getTutorName = (booking) => {
   return getPersonLabel(booking?.tutor) || booking?.tutorSnapshot?.name || 'Assigned Tutor';
+};
+
+const normalizeSubject = (value) => {
+  if (!value) return '';
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+};
+
+const subjectMatchesBooking = (tutor, booking) => {
+  const bookingSubject = normalizeSubject(booking?.subject || booking?.studentSnapshot?.subject || '');
+  if (!bookingSubject) return true;
+
+  const tutorSubjects = Array.isArray(tutor?.subjects)
+    ? tutor.subjects
+    : typeof tutor?.subjects === 'string'
+      ? tutor.subjects.split(',')
+      : [];
+
+  return tutorSubjects.some(subject => normalizeSubject(subject).includes(bookingSubject) || bookingSubject.includes(normalizeSubject(subject)));
 };
 
 export default function BookingsAdminPage() {
@@ -87,18 +105,26 @@ export default function BookingsAdminPage() {
     }
   };
 
+  const isAssignableTutor = (user) => {
+    const status = String(user?.status || '').toLowerCase();
+    const verified = Boolean(user?.verified);
+    const role = String(user?.role || '').toLowerCase();
+    return role === 'tutor' && (verified || status === 'verified' || status === 'active' || status === 'approved');
+  };
+
   const openAssignModal = async (booking) => {
     setAssignModalBooking(booking);
-    if (tutors.length === 0) {
-      setLoadingTutors(true);
-      try {
-        const data = await adminApi.getUsers('tutor');
-        setTutors(data.filter(u => u.role === 'tutor' && u.status === 'verified'));
-      } catch (err) {
-        console.error('Error loading tutors:', err);
-      } finally {
-        setLoadingTutors(false);
-      }
+    setLoadingTutors(true);
+    try {
+      const data = await adminApi.getUsers('tutor');
+      const assignableTutors = Array.isArray(data) ? data.filter(isAssignableTutor) : [];
+      const filteredBySubject = assignableTutors.filter((tutor) => subjectMatchesBooking(tutor, booking));
+      setTutors(filteredBySubject.length > 0 ? filteredBySubject : assignableTutors);
+    } catch (err) {
+      console.error('Error loading tutors:', err);
+      setTutors([]);
+    } finally {
+      setLoadingTutors(false);
     }
   };
 
@@ -478,14 +504,14 @@ export default function BookingsAdminPage() {
               <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-1">
                 <span className="text-[10px] font-bold uppercase text-slate-400">Class / Course</span>
                 <div className="font-bold text-slate-900">
-                  {selectedBookingForDetails.grade || selectedBookingForDetails.classLevel || selectedBookingForDetails.studentSnapshot?.classLevel || 'Class 10'}
+                  {selectedBookingForDetails.grade || selectedBookingForDetails.classLevel || selectedBookingForDetails.studentSnapshot?.classLevel || 'N/A'}
                 </div>
               </div>
 
               <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-1">
                 <span className="text-[10px] font-bold uppercase text-slate-400">Subject</span>
                 <div className="font-bold text-slate-900">
-                  {selectedBookingForDetails.subject || selectedBookingForDetails.studentSnapshot?.subject || 'Mathematics'}
+                  {selectedBookingForDetails.subject || selectedBookingForDetails.studentSnapshot?.subject || 'N/A'}
                 </div>
               </div>
 
@@ -512,6 +538,18 @@ export default function BookingsAdminPage() {
                   </span>
                 </div>
               </div>
+
+              {(selectedBookingForDetails.studentSnapshot?.email || selectedBookingForDetails.student?.email) && (
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-1 col-span-2">
+                  <span className="text-[10px] font-bold uppercase text-slate-400">Email Address</span>
+                  <div className="font-bold text-slate-900">
+                    <a href={`mailto:${selectedBookingForDetails.studentSnapshot?.email || selectedBookingForDetails.student?.email}`} className="text-blue-600 hover:underline">
+                      {selectedBookingForDetails.studentSnapshot?.email || selectedBookingForDetails.student?.email}
+                    </a>
+                  </div>
+                </div>
+              )}
+
 
               {['Confirmed', 'Completed'].includes(selectedBookingForDetails.status) && (
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-1 col-span-2 flex items-center justify-between">

@@ -9,8 +9,13 @@ import { auth, googleProvider } from '../firebase';
 export default function AuthForm({ mode = 'login' }) {
   const [step, setStep] = useState(1);
   const [useOtpLogin, setUseOtpLogin] = useState(false);
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
+  const [forgotPasswordStep, setForgotPasswordStep] = useState(1); // 1: Email, 2: OTP + New Password
+  
   const [otpSent, setOtpSent] = useState(false);
   const [otpValue, setOtpValue] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [sendingOtp, setSendingOtp] = useState(false);
 
   const [form, setForm] = useState({
@@ -143,6 +148,74 @@ export default function AuthForm({ mode = 'login' }) {
     }
   };
 
+  const handleSendForgotPasswordOtp = async (e) => {
+    e.preventDefault();
+    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      return setError('Please enter a valid registered email address');
+    }
+
+    setSendingOtp(true);
+    setError('');
+    setSuccess('');
+
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || ' ';
+
+    try {
+      const response = await fetch(`${baseUrl}/api/v1/auth/forgot-password-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to send OTP');
+
+      setOtpSent(true);
+      setForgotPasswordStep(2);
+      setSuccess(data.message || 'OTP sent successfully to your email address!');
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!otpValue || otpValue.length < 6) return setError('Please enter the complete 6-digit OTP code');
+    if (!newPassword || newPassword.length < 6) return setError('New password must be at least 6 characters');
+    if (newPassword !== confirmNewPassword) return setError('Passwords do not match');
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || ' ';
+
+    try {
+      const response = await fetch(`${baseUrl}/api/v1/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email, otp: otpValue, newPassword }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to reset password');
+
+      setSuccess(data.message || 'Password reset successfully!');
+      setTimeout(() => {
+        setForgotPasswordMode(false);
+        setUseOtpLogin(false);
+        setOtpSent(false);
+        setForm({ ...form, password: '' });
+      }, 2000);
+    } catch (err) {
+      setError(err.message || 'Failed to reset password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const submitAuth = async () => {
     if (mode === 'register' && !validateStep(4)) return;
     
@@ -164,6 +237,14 @@ export default function AuthForm({ mode = 'login' }) {
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Authentication failed');
+
+      if (data.requireOtp) {
+        setSuccess(data.message || 'Please enter the OTP sent to your email.');
+        setUseOtpLogin(true);
+        setOtpSent(true);
+        setLoading(false);
+        return;
+      }
 
       localStorage.setItem('verifiedtutor-token', data.token);
       localStorage.setItem('verifiedtutor-user', JSON.stringify(data.user));
@@ -235,6 +316,111 @@ export default function AuthForm({ mode = 'login' }) {
   };
 
   if (mode === 'login') {
+    if (forgotPasswordMode) {
+      return (
+        <div className="w-full">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-900">Reset Password</h2>
+            <button
+              onClick={() => {
+                setForgotPasswordMode(false);
+                setError('');
+                setSuccess('');
+                setOtpSent(false);
+                setForgotPasswordStep(1);
+              }}
+              className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1"
+            >
+              <ChevronLeft size={14} /> Back to Login
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-rose-200 bg-rose-50/90 p-3.5 text-xs font-medium text-rose-700">
+              <AlertCircle size={18} className="shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-3.5 text-xs font-medium text-emerald-700">
+              <CheckCircle2 size={18} className="shrink-0" />
+              <span>{success}</span>
+            </div>
+          )}
+
+          {forgotPasswordStep === 1 ? (
+            <form onSubmit={handleSendForgotPasswordOtp} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Registered Email</label>
+                <div className="relative">
+                  <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10"
+                    placeholder="student@example.com"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={sendingOtp}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#056852] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#045241] shadow-lg shadow-[#056852]/20 disabled:opacity-70"
+              >
+                {sendingOtp ? <Loader2 size={18} className="animate-spin" /> : 'Send Reset OTP'}
+                {!sendingOtp && <ArrowRight size={16} />}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleResetPassword} className="space-y-4 animate-in fade-in duration-200">
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">6-Digit OTP</label>
+                <div className="relative">
+                  <KeyRound size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={otpValue}
+                    onChange={(e) => setOtpValue(e.target.value)}
+                    className="w-full rounded-2xl border border-teal-500 bg-white py-3 pl-11 pr-4 text-center tracking-[8px] font-mono text-lg font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-teal-500/20"
+                    placeholder="123456"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">New Password</label>
+                <div className="relative">
+                  <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input type={showPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-11 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="••••••••" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Confirm New Password</label>
+                <div className="relative">
+                  <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input type={showPassword ? 'text' : 'password'} value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-11 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="••••••••" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <button type="button" onClick={() => setForgotPasswordStep(1)} className="text-slate-500 hover:text-slate-800 underline">Change Email</button>
+                <button type="button" onClick={handleSendForgotPasswordOtp} disabled={sendingOtp} className="text-[#056852] font-semibold hover:underline">Resend OTP</button>
+              </div>
+
+              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#056852] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#045241] shadow-lg shadow-[#056852]/20 disabled:opacity-70">
+                {loading ? <Loader2 size={18} className="animate-spin" /> : 'Reset Password'}
+              </button>
+            </form>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="w-full">
         {/* Login Method Toggle Tabs */}
@@ -245,6 +431,7 @@ export default function AuthForm({ mode = 'login' }) {
               setUseOtpLogin(false);
               setError('');
               setSuccess('');
+              setOtpSent(false);
             }}
             className={`flex-1 rounded-xl py-2 text-xs font-bold transition ${!useOtpLogin ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
           >
@@ -365,7 +552,12 @@ export default function AuthForm({ mode = 'login' }) {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600">Password</label>
+                <button type="button" onClick={() => setForgotPasswordMode(true)} className="text-[11px] font-semibold text-[#056852] hover:underline">
+                  Forgot Password?
+                </button>
+              </div>
               <div className="relative">
                 <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-11 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-teal-500/10" placeholder="••••••••" />
