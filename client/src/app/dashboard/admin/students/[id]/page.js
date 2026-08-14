@@ -8,6 +8,7 @@ import {
   MapPin, Phone, Mail, Calendar, BookOpen, Clock, 
   CreditCard, CheckCircle, XCircle 
 } from 'lucide-react';
+import { adminApi } from '../../../../../lib/api';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -200,9 +201,25 @@ export default function StudentDetailPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col gap-2 shrink-0 md:w-32">
+        <div className="flex flex-col gap-2 shrink-0 md:w-36">
           <button onClick={() => { setEditForm(student); setIsEditing(true); }} className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-emerald-600 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-50 transition shadow-sm">
             <Edit size={14} /> Edit Student
+          </button>
+          <button onClick={async () => {
+            const newStatus = (student.status === 'active' || student.status === 'verified') ? 'inactive' : 'active';
+            try {
+              const updated = await adminApi.updateUser(student._id || student.id, { status: newStatus });
+              if (updated) setStudent({ ...student, ...updated });
+            } catch (err) {
+              alert('Failed to update status');
+            }
+          }} className={`flex items-center justify-center gap-2 px-4 py-2 bg-white border rounded-lg text-xs font-bold transition shadow-sm ${
+            (student.status === 'active' || student.status === 'verified') 
+            ? 'border-amber-500 text-amber-600 hover:bg-amber-50' 
+            : 'border-emerald-500 text-emerald-600 hover:bg-emerald-50'
+          }`}>
+            {(student.status === 'active' || student.status === 'verified') ? <XCircle size={14} /> : <CheckCircle size={14} />} 
+            {(student.status === 'active' || student.status === 'verified') ? 'Deactivate' : 'Activate'}
           </button>
           <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition shadow-sm">
             <MessageSquare size={14} /> Message
@@ -246,7 +263,7 @@ export default function StudentDetailPage() {
             </div>
             <div>
               <p className="text-xs text-slate-500 font-semibold mb-1">Due Amount</p>
-              <p className="text-xl font-bold text-emerald-700">₹{dueAmount}</p>
+              <p className="text-xl font-bold text-emerald-700">₹{dueAmount.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -283,7 +300,7 @@ export default function StudentDetailPage() {
           </div>
           <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex justify-between items-center">
             <span className="text-sm font-bold text-slate-700">Total Hours / Week</span>
-            <span className="text-sm font-bold text-slate-900">{totalSubjects * 3} Hours</span>
+            <span className="text-sm font-bold text-slate-900">{totalSubjects > 0 ? totalSubjects * 3 : 0} Hours</span>
           </div>
         </div>
 
@@ -301,19 +318,19 @@ export default function StudentDetailPage() {
           <div className="space-y-4 mb-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <span className="text-sm text-slate-600 font-semibold">Days</span>
-              <span className="text-sm text-slate-900 font-bold">Mon, Wed, Fri</span>
+              <span className="text-sm text-slate-900 font-bold">{fixedSchedule.length > 0 ? fixedSchedule[0].days?.join(', ') || 'Mon, Wed, Fri' : 'N/A'}</span>
             </div>
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <span className="text-sm text-slate-600 font-semibold">Start Time</span>
-              <span className="text-sm text-slate-900 font-bold">{fixedSchedule.length > 0 ? fixedSchedule[0].startTime : '05:00 PM'}</span>
+              <span className="text-sm text-slate-900 font-bold">{fixedSchedule.length > 0 ? fixedSchedule[0].startTime : 'N/A'}</span>
             </div>
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <span className="text-sm text-slate-600 font-semibold">End Time</span>
-              <span className="text-sm text-slate-900 font-bold">{fixedSchedule.length > 0 ? fixedSchedule[0].endTime : '07:00 PM'}</span>
+              <span className="text-sm text-slate-900 font-bold">{fixedSchedule.length > 0 ? fixedSchedule[0].endTime : 'N/A'}</span>
             </div>
             <div className="flex justify-between items-center pb-2">
               <span className="text-sm text-slate-600 font-semibold">Total Hours / Week</span>
-              <span className="text-sm text-slate-900 font-bold">6 Hours</span>
+              <span className="text-sm text-slate-900 font-bold">{fixedSchedule.length > 0 ? '6 Hours' : '0 Hours'}</span>
             </div>
           </div>
 
@@ -336,29 +353,29 @@ export default function StudentDetailPage() {
           <div className="space-y-4 mb-auto text-sm">
             <div className="flex justify-between items-center">
               <span className="text-slate-600">Hourly Rate (Per Subject)</span>
-              <span className="font-bold text-slate-800">₹500 / hr</span>
+              <span className="font-bold text-slate-800">₹{totalSubjects > 0 ? '500' : '0'} / hr</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-slate-600">Monthly Rate (All Subjects)</span>
-              <span className="font-bold text-slate-800">₹4,000 / month</span>
+              <span className="font-bold text-slate-800">₹{totalSubjects > 0 ? '4,000' : '0'} / month</span>
             </div>
             <div className="flex justify-between items-center border-b border-slate-100 pb-4">
               <span className="text-slate-600">Total Subjects</span>
-              <span className="font-bold text-slate-800">{totalSubjects || 3}</span>
+              <span className="font-bold text-slate-800">{totalSubjects}</span>
             </div>
             
             <div className="flex justify-between items-center pt-2">
               <span className="text-slate-600">Total Hourly (All Subjects)</span>
-              <span className="font-bold text-slate-800">₹{totalSubjects ? totalSubjects * 500 : 1500} / hr</span>
+              <span className="font-bold text-slate-800">₹{totalSubjects ? totalSubjects * 500 : 0} / hr</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-slate-600">Total Monthly (All Subjects)</span>
-              <span className="font-bold text-slate-800">₹{totalSubjects ? totalSubjects * 4000 : 12000} / month</span>
+              <span className="font-bold text-slate-800">₹{totalSubjects ? totalSubjects * 4000 : 0} / month</span>
             </div>
             
             <div className="flex justify-between items-center pt-2">
               <span className="text-emerald-700 font-bold">Total Paid</span>
-              <span className="font-bold text-emerald-700">₹{totalPayments || 12450}</span>
+              <span className="font-bold text-emerald-700">₹{totalPayments}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-slate-800 font-bold">Due Amount</span>
@@ -412,7 +429,10 @@ export default function StudentDetailPage() {
                   <User size={24} />
                 </div>
                 <p className="text-sm font-semibold text-slate-600 mb-1">No Tutor Assigned</p>
-                <p className="text-xs">This student hasn't booked any tutors yet.</p>
+                <p className="text-xs mb-3">This student hasn't booked any tutors yet.</p>
+                <button onClick={() => router.push('/dashboard/admin/bookings')} className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition shadow-sm">
+                  Go to Bookings
+                </button>
               </div>
             )}
           </div>
@@ -427,19 +447,19 @@ export default function StudentDetailPage() {
             <div className="space-y-4 text-sm">
               <div className="flex flex-col">
                 <span className="text-slate-500 text-xs font-semibold">Learning Mode</span>
-                <span className="text-slate-800 font-medium mt-1">Offline (Home Tuition)</span>
+                <span className="text-slate-800 font-medium mt-1">{student.mode ? (Array.isArray(student.mode) ? student.mode.join(', ') : student.mode) : 'Not Specified'}</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-slate-500 text-xs font-semibold">Preferred Subjects</span>
-                <span className="text-slate-800 font-medium mt-1">Mathematics, Physics, Chemistry</span>
+                <span className="text-slate-800 font-medium mt-1">{student.subjects && student.subjects.length > 0 ? student.subjects.join(', ') : 'Not Specified'}</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-slate-500 text-xs font-semibold">Area / Location</span>
-                <span className="text-slate-800 font-medium mt-1">{student.address?.city || student.address?.full || 'Lucknow, Uttar Pradesh'}</span>
+                <span className="text-slate-800 font-medium mt-1">{student.address?.city || student.address?.full || student.location || 'Not Specified'}</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-slate-500 text-xs font-semibold">Notes</span>
-                <span className="text-slate-600 font-medium mt-1 leading-relaxed text-xs">Good in problem solving and consistent in performance. Needs more focus on Chemistry organic reactions.</span>
+                <span className="text-slate-600 font-medium mt-1 leading-relaxed text-xs">{student.bio || student.notes || 'No specific notes available for this student.'}</span>
               </div>
             </div>
           </div>
@@ -459,46 +479,14 @@ export default function StudentDetailPage() {
         </div>
 
         <div className="space-y-4 mb-6">
-          {/* Mock messages updated with real names */}
-          <div className="flex gap-4">
-            <div className="h-8 w-8 rounded-full bg-slate-200 overflow-hidden shrink-0 mt-1 flex items-center justify-center text-slate-500 font-bold text-xs">
-              {assignedTutor?.avatar ? (
-                <img src={assignedTutor.avatar} alt="Tutor" className="h-full w-full object-cover" />
-              ) : (
-                (assignedTutor?.name || 'T').charAt(0).toUpperCase()
-              )}
-            </div>
-            <div className="flex-1 bg-slate-50 rounded-2xl rounded-tl-none p-3 border border-slate-100 relative">
-              <span className="absolute top-3 right-3 text-[10px] text-slate-400 font-semibold">10:30 AM</span>
-              <p className="text-xs font-bold text-slate-800 mb-0.5">{assignedTutor?.name || 'Tutor'} (Tutor)</p>
-              <p className="text-sm text-slate-600">Hi {student.name.split(' ')[0]}, please confirm tomorrow's class timing.</p>
-            </div>
-          </div>
-
-          <div className="flex gap-4">
-            <div className="h-8 w-8 rounded-full bg-emerald-100 shrink-0 mt-1 flex items-center justify-center text-emerald-700 font-bold text-xs">
-              {student.name.charAt(0)}
-            </div>
-            <div className="flex-1 bg-emerald-50/50 rounded-2xl rounded-tl-none p-3 border border-emerald-100/50 relative">
-              <span className="absolute top-3 right-3 text-[10px] text-slate-400 font-semibold">10:35 AM</span>
-              <p className="text-xs font-bold text-slate-800 mb-0.5">{student.name} (Student)</p>
-              <p className="text-sm text-slate-600">Yes sir, 5 PM is perfect for me.</p>
-            </div>
-          </div>
-          
-          <div className="flex gap-4">
-            <div className="h-8 w-8 rounded-full bg-slate-800 shrink-0 mt-1 flex items-center justify-center text-white font-bold text-xs">
-              A
-            </div>
-            <div className="flex-1 bg-slate-50 rounded-2xl rounded-tl-none p-3 border border-slate-100 relative">
-              <span className="absolute top-3 right-3 text-[10px] text-slate-400 font-semibold">10:40 AM</span>
-              <p className="text-xs font-bold text-slate-800 mb-0.5">Admin</p>
-              <p className="text-sm text-slate-600">Schedule has been confirmed.</p>
-            </div>
+          <div className="p-6 text-center text-slate-500 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+            <MessageSquare size={24} className="mx-auto mb-2 text-slate-300" />
+            <p className="text-sm font-semibold">No recent messages</p>
+            <p className="text-xs mt-1">This student hasn't sent or received any messages yet.</p>
           </div>
         </div>
 
-        <button className="w-full py-2.5 flex items-center justify-center border border-slate-300 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition shadow-sm">
+        <button disabled className="w-full py-2.5 flex items-center justify-center border border-slate-200 text-slate-400 rounded-lg text-sm font-bold bg-slate-50 cursor-not-allowed">
           View All Messages
         </button>
       </div>
