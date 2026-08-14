@@ -10,6 +10,8 @@ export const metadata = {
   description: 'Connect with verified tutors for school, college, competitive exams and skill development - online or offline.',
 };
 
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${dmSans.variable}`}>

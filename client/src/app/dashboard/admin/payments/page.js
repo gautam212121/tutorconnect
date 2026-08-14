@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { TrendingUp, ArrowUpRight, CreditCard, IndianRupee, Download, Filter } from 'lucide-react';
+import { usePoll } from '../../../lib/api';
 
 function LineAreaChart({ data, color = '#056852', gradId, height = 80 }) {
   if (!data || data.length < 2) return null;
@@ -24,7 +25,7 @@ function LineAreaChart({ data, color = '#056852', gradId, height = 80 }) {
   );
 }
 
-const TRANSACTIONS = [];
+// Removed static transactions
 
 const TYPE_COLORS = {
   booking: 'bg-emerald-100 text-emerald-700',
@@ -43,14 +44,24 @@ export default function PaymentsAdminPage() {
   const [activeTab, setActiveTab] = useState('revenue');
   const [dateRange, setDateRange] = useState('This Month');
 
-  const revenueData = [150000, 230000, 180000, 340000, 245000, 290000, 320000];
-  const totalRevenue = revenueData.reduce((a, b) => a + b, 0);
+  const { data: serverData, loading } = usePoll('/api/v1/admin/payments-data', 30000, null);
+
+  const revenueData = serverData?.revenueData || [0, 0, 0, 0, 0, 0, 0];
+  const fetchedStats = serverData?.stats || { totalRevenue: 0, tutorPayouts: 0, commission: 0, refunds: 0 };
+  const TRANSACTIONS = serverData?.transactions || [];
+
+  const formatLakhs = (val) => {
+    if (!val) return '₹0';
+    if (val >= 100000) return `₹${(val / 100000).toFixed(2)}L`;
+    if (val >= 1000) return `₹${(val / 1000).toFixed(1)}k`;
+    return `₹${val.toLocaleString()}`;
+  };
 
   const stats = [
-    { label: 'Total Revenue', value: `₹${(totalRevenue / 100000).toFixed(2)}L`, change: '+28.6%', color: 'text-emerald-600 bg-emerald-50', icon: TrendingUp },
-    { label: 'Tutor Payouts', value: '₹8.24L', change: '+18.3%', color: 'text-blue-600 bg-blue-50', icon: CreditCard },
-    { label: 'Commission', value: '₹2.48L', change: '+32.1%', color: 'text-amber-600 bg-amber-50', icon: IndianRupee },
-    { label: 'Refunds', value: '₹12,400', change: '-5.2%', color: 'text-rose-600 bg-rose-50', icon: ArrowUpRight },
+    { label: 'Total Revenue', value: formatLakhs(fetchedStats.totalRevenue), change: '+0.0%', color: 'text-emerald-600 bg-emerald-50', icon: TrendingUp },
+    { label: 'Tutor Payouts', value: formatLakhs(fetchedStats.tutorPayouts), change: '+0.0%', color: 'text-blue-600 bg-blue-50', icon: CreditCard },
+    { label: 'Commission', value: formatLakhs(fetchedStats.commission), change: '+0.0%', color: 'text-amber-600 bg-amber-50', icon: IndianRupee },
+    { label: 'Refunds', value: `₹${fetchedStats.refunds.toLocaleString()}`, change: '0.0%', color: 'text-rose-600 bg-rose-50', icon: ArrowUpRight },
   ];
 
   const tabs = [
@@ -65,6 +76,17 @@ export default function PaymentsAdminPage() {
     { code: 'FIRST200', discount: '₹200', type: 'Flat', used: 890, maxUses: 1000, status: 'active', expires: '30 Jun 2026' },
     { code: 'SUMMER30', discount: '30%', type: 'Percentage', used: 500, maxUses: 500, status: 'expired', expires: '31 Jul 2026' },
   ];
+
+  if (loading && !serverData) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-8 w-48 bg-slate-200 animate-pulse rounded"></div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[1,2,3,4].map(i => <div key={i} className="h-24 bg-slate-200 animate-pulse rounded-2xl"></div>)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-4">

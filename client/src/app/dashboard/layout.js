@@ -11,7 +11,9 @@ import {
 } from 'lucide-react';
 import { usePoll } from '../lib/api';
 
-export default function DashboardLayout({ children }) {
+import { Suspense } from 'react';
+
+function DashboardLayoutContent({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -272,5 +274,13 @@ export default function DashboardLayout({ children }) {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DashboardLayout({ children }) {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f5f7fa] flex items-center justify-center">Loading dashboard...</div>}>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </Suspense>
   );
 }

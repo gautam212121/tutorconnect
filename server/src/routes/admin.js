@@ -409,4 +409,43 @@ router.put('/callbacks/:id', async (req, res) => {
   }
 });
 
+// ── Payments Dashboard Data ──
+router.get('/payments-data', async (req, res) => {
+  try {
+    // Basic stats
+    const statsRow = await execute('SELECT SUM(totalAmount) as totalRevenue, SUM(tutorShare) as tutorPayouts, SUM(adminShare) as commission FROM payments WHERE status = "Completed"');
+    const refundsRow = await execute('SELECT SUM(totalAmount) as totalRefunds FROM payments WHERE status = "Refunded"');
+    
+    // Revenue chart (last 7 days dummy or real if possible)
+    const chartRows = await execute('SELECT DATE(createdAt) as date, SUM(totalAmount) as revenue FROM payments WHERE status = "Completed" GROUP BY DATE(createdAt) ORDER BY DATE(createdAt) DESC LIMIT 7');
+    const revenueData = chartRows.map(r => Number(r.revenue)).reverse();
+    if (revenueData.length === 0) revenueData.push(0, 0, 0, 0, 0, 0, 0); // fallback
+    
+    // Transactions
+    const payments = await execute('SELECT p.*, s.name as studentName, t.name as tutorName FROM payments p LEFT JOIN users s ON p.student = s.id LEFT JOIN users t ON p.tutor = t.id ORDER BY p.createdAt DESC LIMIT 50');
+    const transactions = payments.map(p => ({
+      id: `TXN${p.id.toString().padStart(6, '0')}`,
+      student: p.studentName || 'Student',
+      tutor: p.tutorName || 'Tutor',
+      amount: p.totalAmount,
+      type: 'booking', // default for payments
+      date: new Date(p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      status: p.status === 'Completed' ? 'paid' : p.status.toLowerCase(),
+    }));
+
+    res.json({
+      stats: {
+        totalRevenue: statsRow[0]?.totalRevenue || 0,
+        tutorPayouts: statsRow[0]?.tutorPayouts || 0,
+        commission: statsRow[0]?.commission || 0,
+        refunds: refundsRow[0]?.totalRefunds || 0,
+      },
+      revenueData,
+      transactions,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 export default router;
