@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   BookOpen, LayoutDashboard, Calendar, UserCheck, LogOut, Home,
   GraduationCap, MessageSquare, MessageCircle, Bell, Settings, Star, Video,
@@ -14,6 +14,7 @@ import { usePoll } from '../lib/api';
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -38,7 +39,7 @@ export default function DashboardLayout({ children }) {
     }
   }, [pathname, isAdminRoute, router]);
 
-  useEffect(() => { setMobileNavOpen(false); }, [pathname]);
+  useEffect(() => { setMobileNavOpen(false); }, [pathname, searchParams]);
 
   const handleLogout = () => {
     localStorage.removeItem('verifiedtutor-token');
@@ -103,12 +104,22 @@ export default function DashboardLayout({ children }) {
 
   // ── Active state: Only the exact matching href is active ──────────────────
   const isActive = (item) => {
-    if (item.exact) return pathname === item.href.split('?')[0];
+    if (item.exact) return pathname === item.href.split('?')[0] && !searchParams.get('section');
+    
     const [itemPath, itemQuery] = item.href.split('?');
-    const [currentPath, currentQuery] = (pathname + (typeof window !== 'undefined' ? window.location.search : '')).split('?');
-    if (itemPath !== currentPath) return false;
-    if (!itemQuery) return !currentQuery;
-    return currentQuery === itemQuery;
+    if (itemPath !== pathname) return false;
+    
+    if (!itemQuery) return !searchParams.toString();
+    
+    const urlParams = new URLSearchParams(itemQuery);
+    let isMatch = true;
+    for (const [key, value] of urlParams.entries()) {
+      if (searchParams.get(key) !== value) {
+        isMatch = false;
+        break;
+      }
+    }
+    return isMatch;
   };
 
   return (

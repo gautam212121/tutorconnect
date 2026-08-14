@@ -53,6 +53,25 @@ function StudentDashboardContent() {
     );
   }
 
+  // Handle unimplemented sections
+  const unimplementedSections = ['bookings', 'subjects', 'messages', 'assignments', 'payments', 'progress', 'reviews', 'notifications', 'settings', 'support'];
+  if (unimplementedSections.includes(section)) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto h-[calc(100vh-100px)] flex flex-col items-center justify-center">
+        <div className="w-24 h-24 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mb-6">
+          <Settings size={40} />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2 capitalize">{section}</h2>
+        <p className="text-slate-500 max-w-sm text-center">
+          This section is currently under development. Please check back later.
+        </p>
+        <Link href="/dashboard/student" className="mt-6 px-6 py-2 bg-[#056852] text-white rounded-xl font-bold hover:bg-[#045241] transition">
+          Back to Dashboard
+        </Link>
+      </div>
+    );
+  }
+
   // --- Helpers for Charts ---
   const totalPayment = paymentSummary.paid + paymentSummary.pending + paymentSummary.refunded || 1; // avoid / 0
   const paidPct = (paymentSummary.paid / totalPayment) * 100;
