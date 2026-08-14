@@ -21,6 +21,9 @@ api.interceptors.request.use((config) => {
 export const adminApi = {
   getSettings: () => api.get('admin-new/settings').then(res => res.data),
   updateSettings: (data) => api.put('admin-new/settings', data).then(res => res.data),
+  updateSettingsMultipart: (formData) => api.put('admin-new/settings', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(res => res.data),
   
   getCategories: () => api.get('admin-new/categories').then(res => res.data),
   createCategory: (data) => api.post('admin-new/categories', data).then(res => res.data),

@@ -30,6 +30,7 @@ function Toggle({ value, onChange }) {
 export default function SettingsAdminPage() {
   const [activeSection, setActiveSection] = useState('general');
   const [saved, setSaved] = useState(false);
+  const [heroImageFile, setHeroImageFile] = useState(null);
 
   const [settings, setSettings] = useState({
     siteName: 'VerifiedTutor',
@@ -77,7 +78,20 @@ export default function SettingsAdminPage() {
 
   const handleSave = async () => {
     try {
-      await adminApi.updateSettings(settings);
+      if (heroImageFile) {
+        const formData = new FormData();
+        Object.keys(settings).forEach(key => {
+          if (key !== 'heroImage') {
+            formData.append(key, settings[key]);
+          }
+        });
+        formData.append('heroImageFile', heroImageFile);
+        
+        await adminApi.updateSettingsMultipart(formData);
+      } else {
+        await adminApi.updateSettings(settings);
+      }
+      
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -154,7 +168,7 @@ export default function SettingsAdminPage() {
                 <label className="text-[11px] font-semibold uppercase text-slate-400 mb-2 block">Hero Background Image</label>
                 <div className="flex items-center gap-4">
                   {settings.heroImage ? (
-                    <img src={settings.heroImage} alt="Hero Preview" className="h-20 w-32 rounded-xl object-cover border border-slate-200 shadow-sm" />
+                    <img src={settings.heroImage.startsWith('data:') ? settings.heroImage : `${process.env.NEXT_PUBLIC_API_URL || ''}${settings.heroImage}`} alt="Hero Preview" className="h-20 w-32 rounded-xl object-cover border border-slate-200 shadow-sm" />
                   ) : (
                     <div className="flex h-20 w-32 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-400 text-xs">
                       No Image
@@ -166,6 +180,7 @@ export default function SettingsAdminPage() {
                     onChange={(e) => {
                       const file = e.target.files[0];
                       if (file) {
+                        setHeroImageFile(file);
                         const reader = new FileReader();
                         reader.onloadend = () => update('heroImage', reader.result);
                         reader.readAsDataURL(file);

@@ -8,351 +8,609 @@ import {
   Search, MapPin, BookOpen, GraduationCap, Star, Calendar, ArrowRight,
   CreditCard, MessageSquare, Shield, BadgeCheck, ChevronRight, Heart,
   Clock, Users, FileText, HelpCircle, Settings, Bell, User, Headphones,
-  Gift, LogOut, Menu, X, CheckCircle,
+  Gift, LogOut, Menu, X, CheckCircle, SearchIcon, Video
 } from 'lucide-react';
+import { fetchApi, usePoll } from '../../lib/api';
 
-const API = process.env.NEXT_PUBLIC_API_URL || ' ';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 function StudentDashboardContent() {
   const searchParams = useSearchParams();
   const section = searchParams.get('section');
   const [user, setUser] = useState(null);
-  const [dashboard, setDashboard] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [subjects, setSubjects] = useState([]);
-  const [searchSubject, setSearchSubject] = useState('');
-  const [searchClass, setSearchClass] = useState('');
-  const [searchLocation, setSearchLocation] = useState('');
 
   useEffect(() => {
     const stored = localStorage.getItem('verifiedtutor-user');
     if (stored) setUser(JSON.parse(stored));
-
-    const token = localStorage.getItem('verifiedtutor-token');
-    if (!token) return;
-
-    fetch(`${API}/api/v1/student/dashboard`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(data => { setDashboard(data); setLoading(false); })
-      .catch(() => setLoading(false));
-
-    fetch(`${API}/api/v1/subjects`)
-      .then(r => r.json())
-      .then(data => setSubjects(Array.isArray(data) ? data : []))
-      .catch(() => {});
   }, []);
 
-  if (loading) {
+  const { data: dashboard, loading } = usePoll('/api/v1/student/dashboard', 10000, null);
+
+  if (loading && !dashboard) {
     return (
-      <div className="p-6 space-y-6">
-        {/* Skeleton */}
-        <div className="h-8 w-72 skeleton rounded-lg" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <div key={i} className="h-28 skeleton rounded-2xl" />)}
-        </div>
-        <div className="h-48 skeleton rounded-2xl" />
-        <div className="grid lg:grid-cols-2 gap-4">
-          <div className="h-64 skeleton rounded-2xl" />
-          <div className="h-64 skeleton rounded-2xl" />
-        </div>
+      <div className="p-6 space-y-6 animate-pulse max-w-[1400px] mx-auto">
+        <div className="h-16 bg-slate-200 rounded-2xl w-full" />
+        <div className="h-48 bg-slate-200 rounded-2xl w-full" />
+        <div className="grid grid-cols-4 gap-4"><div className="h-24 bg-slate-200 rounded-2xl col-span-1" /></div>
       </div>
     );
   }
 
   const stats = dashboard?.stats || {};
+  const paymentSummary = dashboard?.paymentSummary || { paid: 0, pending: 0, refunded: 0 };
   const upcomingSessions = dashboard?.upcomingSessions || [];
   const recentBookings = dashboard?.recentBookings || [];
-  const mySubjects = dashboard?.subjects || [];
-  const assignedTutors = dashboard?.assignedTutors || [];
+  const recentMessages = dashboard?.recentMessages || [];
+  const subjectsProgress = dashboard?.subjectsProgress || [];
+  const recommendedTutors = dashboard?.recommendedTutors || [];
+  const progressChart = dashboard?.progressChart || { labels: [], data: [] };
 
   if (section === 'schedule') {
     return (
       <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
-        <ScheduleView user={user} assignedTutors={assignedTutors} />
+        <ScheduleView user={user} assignedTutors={dashboard?.assignedTutors || []} />
       </div>
     );
   }
 
+  // --- Helpers for Charts ---
+  const totalPayment = paymentSummary.paid + paymentSummary.pending + paymentSummary.refunded || 1; // avoid / 0
+  const paidPct = (paymentSummary.paid / totalPayment) * 100;
+  const pendingPct = (paymentSummary.pending / totalPayment) * 100;
+
+  // Donut chart SVG config
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const paidDash = (paidPct / 100) * circumference;
+  const pendingDash = (pendingPct / 100) * circumference;
+  
+  // Line chart SVG config
+  const chartHeight = 120;
+  const chartWidth = 400;
+  const maxData = Math.max(...(progressChart.data.length ? progressChart.data : [100]), 100);
+  const points = progressChart.data.map((val, i) => {
+    const x = (i / Math.max(progressChart.data.length - 1, 1)) * chartWidth;
+    const y = chartHeight - (val / maxData) * chartHeight;
+    return `${x},${y}`;
+  }).join(' ');
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-extrabold text-slate-900">
-          Welcome back, {user?.name?.split(' ')[0]} 👋
-        </h1>
-        <p className="text-sm text-slate-400 mt-0.5">Here&apos;s what&apos;s happening on your learning journey.</p>
-      </div>
-
-      {/* ── Stat Cards ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {[
-          {
-            icon: <Calendar size={20} />, iconBg: 'bg-blue-50 text-blue-600',
-            value: stats.upcomingSessions || 0, label: 'Upcoming Sessions', sub: 'This Week',
-            link: '/dashboard/student?section=schedule', linkText: 'View Schedule →',
-          },
-          {
-            icon: <Users size={20} />, iconBg: 'bg-emerald-50 text-emerald-600',
-            value: stats.activeTutors || 0, label: 'Active Tutors', sub: 'Subjects',
-            link: '#', linkText: '',
-          },
-          {
-            icon: <CreditCard size={20} />, iconBg: 'bg-green-50 text-green-600',
-            value: `₹${(stats.totalSpent || 0).toLocaleString()}`, label: 'Total Spent', sub: 'This Month',
-            link: '/dashboard/student?section=payments', linkText: 'View Invoices →',
-          },
-          {
-            icon: <Star size={20} />, iconBg: 'bg-amber-50 text-amber-500',
-            value: stats.totalReviews || 0, label: 'My Reviews', sub: 'Total Reviews',
-            link: '/dashboard/student?section=reviews', linkText: 'View Reviews →',
-          },
-        ].map((card, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 hover:shadow-md transition">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${card.iconBg} mb-3`}>
-              {card.icon}
-            </div>
-            <p className="text-2xl font-extrabold text-slate-900">{card.value}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{card.sub}</p>
-            {card.linkText && (
-              <Link href={card.link} className="mt-2 inline-flex items-center text-[11px] font-semibold text-emerald-600 hover:text-emerald-700">
-                {card.linkText}
-              </Link>
+    <div className="bg-[#f5f7fa] min-h-screen">
+      {/* ── Top Header ──────────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between bg-white px-6 border-b border-slate-100 hidden md:flex">
+        <div className="flex flex-1 items-center gap-4">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search tutors, subjects, or courses..."
+              className="w-full bg-slate-50 border-none rounded-full py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-[#056852]/20 focus:outline-none transition"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-6">
+          <button className="relative text-slate-500 hover:text-slate-700 transition">
+            <Bell size={20} />
+            {(dashboard?.unreadMessages > 0 || 4 > 0) && (
+              <span className="absolute -top-1.5 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-rose-500 text-[9px] font-bold text-white px-1">
+                {dashboard?.unreadMessages || 4}
+              </span>
             )}
-          </div>
-        ))}
-      </div>
-
-      {/* ── Quick Actions ──────────────────────────────────────────────────── */}
-      <div className="mb-6">
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
-          <h3 className="text-sm font-bold text-slate-800 mb-3">Quick Actions</h3>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {[
-              { icon: <BookOpen size={16} />, title: 'Join Online Session', desc: 'Start your scheduled class', href: '#', color: 'bg-purple-50 text-purple-600' },
-              { icon: <CreditCard size={16} />, title: 'Make a Payment', desc: 'Pay for your upcoming sessions', href: '#', color: 'bg-green-50 text-green-600' },
-            ].map((action, i) => (
-              <Link key={i} href={action.href} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 border border-slate-50 transition group">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${action.color} shrink-0`}>
-                  {action.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-800">{action.title}</p>
-                  <p className="text-[10px] text-slate-400">{action.desc}</p>
-                </div>
-                <ArrowRight size={14} className="text-slate-300 group-hover:text-[#056852] transition" />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Upcoming Sessions + Recent Bookings ────────────────────────────── */}
-      <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        {/* Upcoming Sessions */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-800">Upcoming Sessions</h3>
-            <Link href="/dashboard/student?section=schedule" className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700">
-              View All
-            </Link>
-          </div>
-
-          {upcomingSessions.length === 0 ? (
-            <div className="text-center py-10">
-              <Calendar size={40} className="mx-auto text-slate-200 mb-3" />
-              <p className="text-sm text-slate-400">No upcoming sessions</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {upcomingSessions.slice(0, 3).map((session, i) => {
-                const date = session.scheduledAt ? new Date(session.scheduledAt) : null;
-                return (
-                  <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl">
-                    {date && (
-                      <div className="w-12 h-14 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center shrink-0">
-                        <span className="text-[10px] text-emerald-600 font-bold uppercase">{date.toLocaleDateString('en-IN', { month: 'short' })}</span>
-                        <span className="text-lg font-extrabold text-slate-800 -mt-0.5">{date.getDate()}</span>
-                        <span className="text-[9px] text-slate-400">{date.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-bold text-slate-800">{session.subject} – {session.grade || 'Class'}</p>
-                        <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] font-bold">Confirmed</span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                        <GraduationCap size={10} /> {session.tutor?.name || 'Tutor'} ✓
-                      </p>
-                      <p className="text-[10px] text-slate-400 flex items-center gap-1">
-                        <MapPin size={10} /> {session.address?.area || session.address?.city || session.tutor?.location || 'Location'}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs font-semibold text-slate-700">
-                        {date ? date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </p>
-                      <p className="text-[10px] text-slate-400">{session.duration || 60} min</p>
-                      <button className="mt-1 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition">
-                        Join Session
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <Link href="/dashboard/student?section=schedule" className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
-            View Full Schedule <ArrowRight size={12} />
-          </Link>
-        </div>
-
-        {/* Recent Bookings */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-800">Recent Bookings</h3>
-            <Link href="/dashboard/student?section=bookings" className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700">
-              View All
-            </Link>
-          </div>
-          {recentBookings.length === 0 ? (
-            <div className="text-center py-10">
-              <BookOpen size={40} className="mx-auto text-slate-200 mb-3" />
-              <p className="text-sm text-slate-400">No bookings yet</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentBookings.slice(0, 4).map((booking, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                    {booking.tutor?.name?.charAt(0) || 'T'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-800 truncate">
-                      {booking.subject} – {booking.grade || 'Class'}
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate">
-                      {booking.tutor?.name || 'Tutor'} • {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs font-bold text-slate-700">₹{booking.amount || 0}</p>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                      booking.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' :
-                      booking.status === 'Confirmed' ? 'bg-blue-50 text-blue-600' :
-                      booking.status === 'Cancelled' ? 'bg-red-50 text-red-500' :
-                      'bg-amber-50 text-amber-600'
-                    }`}>
-                      {booking.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <Link href="/dashboard/student?section=bookings" className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
-            View All Bookings <ArrowRight size={12} />
-          </Link>
-        </div>
-      </div>
-
-      {/* ── Assigned Tutor + My Subjects ─────────────────────────────────── */}
-      <div className="grid lg:grid-cols-3 gap-4 mb-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-800">Assigned Tutor</h3>
-            <span className="text-[10px] text-slate-400">Live from bookings</span>
-          </div>
-          {assignedTutors.length === 0 ? (
-            <div className="text-center py-8">
-              <Users size={32} className="mx-auto text-slate-200 mb-2" />
-              <p className="text-xs text-slate-400">No assigned tutor yet.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {assignedTutors.map((tutor, idx) => (
-                <div key={idx} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{tutor.tutorName || 'Assigned Tutor'}</p>
-                      <p className="text-[10px] text-slate-500">{tutor.selectedSubjects?.join(', ') || tutor.subject || 'General subject'}</p>
-                    </div>
-                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">{tutor.status || 'Pending'}</span>
-                  </div>
-                  <div className="mt-3 grid gap-2 text-[11px] text-slate-500 sm:grid-cols-3">
-                    <div><span className="block text-[9px] uppercase tracking-wide text-slate-400">Class</span>{tutor.grade || 'N/A'}</div>
-                    <div><span className="block text-[9px] uppercase tracking-wide text-slate-400">Location</span>{tutor.location || 'N/A'}</div>
-                    <div><span className="block text-[9px] uppercase tracking-wide text-slate-400">Fee</span>₹{Number(tutor.amount || 0).toLocaleString()}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Need Help */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5">
-          <h3 className="text-sm font-bold text-slate-800 mb-2">Need Help?</h3>
-          <p className="text-xs text-slate-400 mb-4">Our support team is here to help you.</p>
-          <button className="flex items-center gap-2 w-full px-4 py-2.5 bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition">
-            <MessageSquare size={14} className="text-emerald-600" /> Chat with Support
           </button>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#056852] flex items-center justify-center text-white font-bold shrink-0">
+              {user?.name?.charAt(0) || 'A'}
+            </div>
+            <div className="hidden lg:block">
+              <p className="text-sm font-bold text-slate-800">{user?.name || 'Aarav Sharma'}</p>
+              <p className="text-[11px] text-slate-500">Class {user?.grade || '10th (CBSE)'}</p>
+            </div>
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* ── My Subjects + Need Help ────────────────────────────────────────── */}
-      <div className="grid lg:grid-cols-3 gap-4 mb-6">
-        {/* My Subjects */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-800">My Subjects</h3>
-            <Link href="/dashboard/student?section=subjects" className="text-[11px] font-semibold text-emerald-600">View All</Link>
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+        
+        {/* ── Top Hero & Stats ──────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Welcome Card */}
+          <div className="lg:col-span-4 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-center min-h-[160px]">
+             {/* Decorative Background */}
+             <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-50 rounded-bl-full opacity-50" />
+             
+             <div className="flex items-center gap-5 relative z-10">
+               <div className="w-20 h-20 rounded-full bg-[#056852] text-white flex items-center justify-center text-2xl font-bold border-4 border-white shadow-sm shrink-0 overflow-hidden">
+                  {user?.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : user?.name?.charAt(0) || 'A'}
+               </div>
+               <div>
+                 <h1 className="text-[22px] font-extrabold text-slate-800 mb-1 leading-tight">
+                    Welcome back, {user?.name?.split(' ')[0] || 'Aarav'}! 👋
+                 </h1>
+                 <p className="text-xs text-slate-500 mb-3">Keep learning and achieve your goals.</p>
+                 
+                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
+                   <div className="flex items-center gap-1.5 text-slate-600">
+                     <User size={13} className="text-slate-400" /> 
+                     <span className="font-medium">Student ID</span>
+                     <span className="font-bold text-slate-800 ml-1">STU{user?.id?.toString().slice(-4) || '1001'}</span>
+                   </div>
+                   <div className="flex items-center gap-1.5 text-slate-600">
+                     <GraduationCap size={13} className="text-slate-400" />
+                     <span className="font-medium">Class</span>
+                     <span className="font-bold text-slate-800 ml-1">{user?.grade || '10th'}</span>
+                   </div>
+                   <div className="flex items-center gap-1.5 text-slate-600">
+                     <MessageSquare size={13} className="text-slate-400" />
+                     <span className="font-medium">Email</span>
+                     <span className="font-bold text-slate-800 ml-1 truncate max-w-[100px]">{user?.email || 'email@ex.com'}</span>
+                   </div>
+                   <div className="flex items-center gap-1.5 text-slate-600">
+                     <SearchIcon size={13} className="text-slate-400" />
+                     <span className="font-medium">Phone</span>
+                     <span className="font-bold text-slate-800 ml-1">{user?.mobile || '+91 -'}</span>
+                   </div>
+                 </div>
+               </div>
+             </div>
+             <div className="absolute bottom-4 left-6 bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded">Student</div>
           </div>
 
-          {mySubjects.length === 0 ? (
-            <div className="text-center py-8">
-              <BookOpen size={32} className="mx-auto text-slate-200 mb-2" />
-              <p className="text-xs text-slate-400">No subjects yet.</p>
+          {/* Stats Cards */}
+          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 mb-3">
+                  <Calendar size={20} />
+                </div>
+                <p className="text-xs font-semibold text-slate-500 mb-1">Upcoming Classes</p>
+                <h3 className="text-2xl font-extrabold text-slate-800">{stats.upcomingSessions || 0}</h3>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-3">Next: Today, 05:00 PM</p>
             </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {mySubjects.map((sub, i) => (
-                <div key={i} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 rounded-xl">
-                  <span className="text-emerald-600 text-sm font-bold">{sub.name}</span>
-                  <span className="text-[10px] text-emerald-400">{sub.tutorCount} Tutor{sub.tutorCount !== 1 ? 's' : ''}</span>
+
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 mb-3">
+                  <BookOpen size={20} />
+                </div>
+                <p className="text-xs font-semibold text-slate-500 mb-1">Total Bookings</p>
+                <h3 className="text-2xl font-extrabold text-slate-800">{stats.totalBookings || 0}</h3>
+              </div>
+              <Link href="/dashboard/student?section=bookings" className="text-[10px] text-slate-400 mt-3 hover:text-slate-600 transition">View all bookings</Link>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-600 mb-3">
+                  <CheckCircle size={20} />
+                </div>
+                <p className="text-xs font-semibold text-slate-500 mb-1">Completed Classes</p>
+                <h3 className="text-2xl font-extrabold text-slate-800">{stats.completedClasses || 0}</h3>
+              </div>
+              <p className="text-[10px] text-emerald-500 font-medium mt-3">Great going!</p>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 mb-3">
+                  <CreditCard size={20} />
+                </div>
+                <p className="text-xs font-semibold text-slate-500 mb-1">Total Spent</p>
+                <h3 className="text-2xl font-extrabold text-slate-800">₹{(stats.totalSpent || 0).toLocaleString()}</h3>
+              </div>
+              <Link href="/dashboard/student?section=payments" className="text-[10px] text-slate-400 mt-3 hover:text-slate-600 transition">View payment history</Link>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Middle Row ──────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Upcoming Classes List */}
+          <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-bold text-slate-800">Upcoming Classes</h3>
+              <Link href="/dashboard/student?section=schedule" className="text-[11px] font-bold text-[#056852] hover:underline">View Full Schedule</Link>
+            </div>
+            
+            <div className="space-y-4">
+              {upcomingSessions.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-xs">No upcoming classes scheduled.</div>
+              ) : (
+                upcomingSessions.map((session, i) => {
+                  const date = session.scheduledAt ? new Date(session.scheduledAt) : new Date();
+                  const isToday = new Date().toDateString() === date.toDateString();
+                  return (
+                    <div key={i} className="flex items-center justify-between group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 shrink-0 overflow-hidden">
+                           {session.tutor?.avatar ? <img src={session.tutor.avatar} alt="Tutor" className="w-full h-full object-cover"/> : session.tutor?.name?.charAt(0) || 'T'}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">{session.tutor?.name || 'Tutor'}</p>
+                          <p className="text-[10px] text-slate-500">{session.subject || 'Subject'}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-6">
+                        <div className="text-right hidden sm:block">
+                          <p className="text-[11px] font-semibold text-slate-700 flex items-center justify-end gap-1"><Calendar size={12} className="text-slate-400"/> {date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                          <p className="text-[10px] text-slate-500 flex items-center justify-end gap-1"><Clock size={12} className="text-slate-400"/> {isToday ? 'Today' : date.toLocaleDateString('en-GB', { weekday: 'long' })}</p>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-[11px] font-semibold text-slate-700">{date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                           <p className="text-[10px] text-slate-500">- {new Date(date.getTime() + (session.duration || 60) * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        
+                        <div className="flex flex-col items-end gap-1 min-w-[80px]">
+                          {i === 0 ? (
+                            <>
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100">Live Class</span>
+                              <button className="flex items-center gap-1 text-[10px] font-bold text-white bg-[#056852] px-2.5 py-1 rounded hover:bg-[#045242] transition">
+                                <Video size={10} /> Join Now
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-100">Upcoming</span>
+                              <button className="text-[10px] font-bold text-[#056852] px-2.5 py-1 rounded border border-slate-200 hover:bg-slate-50 transition w-full text-center">
+                                View
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* My Subjects */}
+          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-bold text-slate-800">My Subjects</h3>
+              <Link href="/dashboard/student?section=subjects" className="text-[11px] font-bold text-[#056852] hover:underline">View All</Link>
+            </div>
+            <div className="space-y-5">
+              {subjectsProgress.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-xs">No subjects active yet.</div>
+              ) : (
+                subjectsProgress.slice(0,4).map((sub, i) => {
+                  const colors = ['bg-emerald-500', 'bg-purple-500', 'bg-amber-500', 'bg-blue-500'];
+                  const bgColors = ['bg-emerald-50 text-emerald-600', 'bg-purple-50 text-purple-600', 'bg-amber-50 text-amber-600', 'bg-blue-50 text-blue-600'];
+                  const color = colors[i % colors.length];
+                  const bgColor = bgColors[i % bgColors.length];
+                  
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bgColor}`}>
+                        <BookOpen size={16} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs font-bold text-slate-800">{sub.name}</p>
+                          <span className="text-[10px] font-bold text-slate-500">{sub.progress}%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${color} rounded-full transition-all duration-1000`} style={{ width: `${sub.progress}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex flex-col">
+            <h3 className="text-sm font-bold text-slate-800 mb-4">Quick Actions</h3>
+            <div className="space-y-2.5 flex-1 flex flex-col justify-between">
+              <Link href="/tutors" className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 hover:border-[#056852]/30 hover:bg-emerald-50/30 transition group bg-white">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-[#056852] group-hover:text-white transition">
+                  <User size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Find Tutors</p>
+                  <p className="text-[9px] text-slate-500">Browse verified tutors</p>
+                </div>
+              </Link>
+              
+              <Link href="/dashboard/student?section=schedule" className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 hover:border-[#056852]/30 hover:bg-emerald-50/30 transition group bg-white">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-[#056852] group-hover:text-white transition">
+                  <Calendar size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Book a Class</p>
+                  <p className="text-[9px] text-slate-500">Schedule your session</p>
+                </div>
+              </Link>
+
+              <Link href="/dashboard/student?section=messages" className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 hover:border-[#056852]/30 hover:bg-emerald-50/30 transition group bg-white">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-[#056852] group-hover:text-white transition">
+                  <HelpCircle size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Ask Doubts</p>
+                  <p className="text-[9px] text-slate-500">Get help instantly</p>
+                </div>
+              </Link>
+
+              <Link href="/dashboard/student?section=homework" className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 hover:border-[#056852]/30 hover:bg-emerald-50/30 transition group bg-white">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-[#056852] group-hover:text-white transition">
+                  <FileText size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Study Materials</p>
+                  <p className="text-[9px] text-slate-500">Access notes & resources</p>
+                </div>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Bottom Row 1 ────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Recent Messages */}
+          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-bold text-slate-800">Recent Messages</h3>
+              <Link href="/dashboard/student?section=messages" className="text-[11px] font-bold text-[#056852] hover:underline">View All</Link>
+            </div>
+            <div className="space-y-4">
+              {recentMessages.length === 0 ? (
+                 <div className="text-center py-6 text-slate-400 text-xs">No messages yet.</div>
+              ) : (
+                recentMessages.map((msg, i) => (
+                  <div key={i} className="flex gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden shrink-0 relative flex items-center justify-center font-bold text-slate-600">
+                      {msg.user.avatar ? <img src={msg.user.avatar} className="w-full h-full object-cover"/> : msg.user.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-800 truncate">{msg.user.name} <span className="text-[9px] font-normal text-slate-400">({msg.user.role})</span></p>
+                        <span className="text-[9px] text-slate-400 shrink-0">
+                           {new Date(msg.createdAt).toDateString() === new Date().toDateString() ? new Date(msg.createdAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : 'Yesterday'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-0.5">
+                        <p className={`text-[11px] truncate pr-2 ${!msg.read && !msg.isSender ? 'text-slate-800 font-semibold' : 'text-slate-500'}`}>
+                          {msg.isSender ? 'You: ' : ''}{msg.text}
+                        </p>
+                        {!msg.read && !msg.isSender && (
+                          <div className="w-4 h-4 rounded-full bg-[#056852] flex items-center justify-center text-[9px] font-bold text-white shrink-0">
+                            1
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Recent Bookings */}
+          <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-bold text-slate-800">Recent Bookings</h3>
+              <Link href="/dashboard/student?section=bookings" className="text-[11px] font-bold text-[#056852] hover:underline">View All</Link>
+            </div>
+            <div className="space-y-4">
+              {recentBookings.length === 0 ? (
+                 <div className="text-center py-6 text-slate-400 text-xs">No recent bookings.</div>
+              ) : (
+                recentBookings.map((booking, i) => {
+                  const date = booking.scheduledAt ? new Date(booking.scheduledAt) : new Date(booking.createdAt);
+                  return (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                          <BookOpen size={16} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">{booking.subject} Class</p>
+                          <p className="text-[10px] text-slate-500">with {booking.tutor?.name || 'Tutor'}</p>
+                        </div>
+                        <div className="ml-2 flex items-center gap-2 hidden sm:flex">
+                           {booking.tutor?.avatar ? (
+                             <img src={booking.tutor.avatar} className="w-6 h-6 rounded-full object-cover" />
+                           ) : (
+                             <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-bold">{booking.tutor?.name?.charAt(0) || 'T'}</div>
+                           )}
+                        </div>
+                      </div>
+                      
+                      <div className="text-right hidden sm:block">
+                         <p className="text-[11px] font-semibold text-slate-700">{date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                         <p className="text-[10px] text-slate-500">{date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                      </div>
+
+                      <div className="w-20 text-right">
+                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold inline-block w-full text-center ${
+                          booking.status === 'Confirmed' ? 'text-emerald-600 bg-emerald-50' :
+                          booking.status === 'Completed' ? 'text-blue-600 bg-blue-50' :
+                          booking.status === 'Cancelled' ? 'text-rose-600 bg-rose-50' :
+                          'text-amber-600 bg-amber-50'
+                        }`}>
+                          {booking.status}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Payment Summary */}
+          <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm relative flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-800">Payment Summary</h3>
+              <Link href="/dashboard/student?section=payments" className="text-[11px] font-bold text-[#056852] hover:underline">View All</Link>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-extrabold text-[#056852]">₹{totalPayment.toLocaleString()}</h2>
+                <p className="text-[10px] text-slate-500">Total Spent</p>
+              </div>
+
+              {/* SVG Donut Chart */}
+              <div className="relative w-20 h-20 shrink-0">
+                <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="16" />
+                  <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#10b981" strokeWidth="16" strokeLinecap="round"
+                    strokeDasharray={circumference} strokeDashoffset={circumference - paidDash}
+                  />
+                  <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#f59e0b" strokeWidth="16" strokeLinecap="round"
+                    strokeDasharray={circumference} strokeDashoffset={circumference - pendingDash}
+                    transform={`rotate(${(paidPct / 100) * 360} 50 50)`}
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3 flex-1">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></div>
+                  <span className="font-semibold text-slate-600">Paid</span>
+                </div>
+                <span className="font-bold text-slate-800">₹{paymentSummary.paid.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></div>
+                  <span className="font-semibold text-slate-600">Pending</span>
+                </div>
+                <span className="font-bold text-slate-800">₹{paymentSummary.pending.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300 shadow-sm"></div>
+                  <span className="font-semibold text-slate-600">Refunded</span>
+                </div>
+                <span className="font-bold text-slate-800">₹{paymentSummary.refunded.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <button className="w-full mt-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition">
+              View Payment History
+            </button>
+          </div>
+        </div>
+
+        {/* ── Bottom Row 2 ────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Recommended Tutors */}
+          <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-bold text-slate-800">Recommended Tutors for You</h3>
+              <Link href="/tutors" className="text-[11px] font-bold text-[#056852] hover:underline">View All</Link>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {recommendedTutors.length === 0 ? (
+                 <div className="col-span-full text-center py-6 text-slate-400 text-xs">No tutors found.</div>
+              ) : recommendedTutors.map((tutor, i) => (
+                <div key={i} className="border border-slate-100 rounded-2xl p-4 flex flex-col hover:shadow-md transition bg-slate-50/50">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-600 shrink-0">
+                      {tutor.avatar ? <img src={tutor.avatar} className="w-full h-full object-cover"/> : tutor.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">{tutor.name}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{tutor.subjects[0] || 'General'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 text-[10px] text-slate-500 mb-4">
+                    <span className="flex items-center gap-1 font-bold text-amber-500"><Star size={10} className="fill-amber-500"/> {tutor.rating.toFixed(1)}</span>
+                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                    <span>{tutor.experience} Exp.</span>
+                  </div>
+                  
+                  <div className="mt-auto flex items-center justify-between pt-2 border-t border-slate-100">
+                    <span className="text-[13px] font-extrabold text-[#056852]">₹{tutor.price}<span className="text-[9px] font-medium text-slate-500">/hr</span></span>
+                    <button className="px-3 py-1.5 rounded-lg border border-[#056852] text-[#056852] text-[10px] font-bold hover:bg-[#056852] hover:text-white transition">
+                      Book Now
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
-          )}
+          </div>
+
+          {/* Progress Overview Chart */}
+          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-bold text-slate-800">My Progress Overview</h3>
+              <button className="text-[11px] font-bold text-[#056852] hover:underline">View Report</button>
+            </div>
+            
+            <div className="relative w-full h-[160px] flex items-end pt-4">
+               {/* Y-Axis labels */}
+               <div className="absolute left-0 top-0 h-[120px] flex flex-col justify-between text-[9px] text-slate-400 font-medium">
+                 <span>100%</span>
+                 <span>50%</span>
+                 <span>0%</span>
+               </div>
+               
+               {/* Chart Area */}
+               <div className="ml-8 w-full h-[120px] relative">
+                 {/* Grid lines */}
+                 <div className="absolute top-0 w-full border-t border-dashed border-slate-200"></div>
+                 <div className="absolute top-1/2 w-full border-t border-dashed border-slate-200"></div>
+                 <div className="absolute bottom-0 w-full border-t border-slate-300"></div>
+                 
+                 <svg className="w-full h-full overflow-visible" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+                   <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
+                     <stop offset="0%" stopColor="#10b981" stopOpacity="0.2" />
+                     <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                   </linearGradient>
+                   
+                   <polyline
+                     points={`${0},${chartHeight} ${points} ${chartWidth},${chartHeight}`}
+                     fill="url(#gradient)"
+                     stroke="none"
+                   />
+                   
+                   <polyline
+                     points={points}
+                     fill="none"
+                     stroke="#10b981"
+                     strokeWidth="3"
+                     strokeLinecap="round"
+                     strokeLinejoin="round"
+                   />
+                   
+                   {/* Points */}
+                   {progressChart.data.map((val, i) => {
+                      const x = (i / Math.max(progressChart.data.length - 1, 1)) * chartWidth;
+                      const y = chartHeight - (val / maxData) * chartHeight;
+                      return (
+                        <circle key={i} cx={x} cy={y} r="4" fill="#fff" stroke="#10b981" strokeWidth="2.5" />
+                      )
+                   })}
+                 </svg>
+               </div>
+            </div>
+            
+            {/* X-Axis Labels */}
+            <div className="ml-8 flex justify-between mt-2 text-[9px] font-medium text-slate-500">
+              {progressChart.labels.map((label, i) => (
+                <span key={i}>{label}</span>
+              ))}
+            </div>
+            
+          </div>
         </div>
 
-      </div>
-
-      {/* ── Trust Footer ───────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-5">
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Shield size={20} className="text-emerald-600" />
-            <span className="text-sm font-bold text-slate-800">Safe, Verified & Trusted</span>
-          </div>
-          <p className="text-xs text-slate-400">All tutors are background verified and phone verified for your safety.</p>
-          <div className="flex gap-4 ml-auto">
-            {[
-              { icon: <BadgeCheck size={14} />, label: 'ID Verified' },
-              { icon: <MapPin size={14} />, label: 'Address Verified' },
-              { icon: <GraduationCap size={14} />, label: 'Experience Checked' },
-              { icon: <CheckCircle size={14} />, label: 'Reference Verified' },
-            ].map((badge, i) => (
-              <div key={i} className="flex items-center gap-1 text-[10px] text-slate-400">
-                <span className="text-emerald-500">{badge.icon}</span>
-                {badge.label}
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -360,7 +618,7 @@ function StudentDashboardContent() {
 
 export default function StudentDashboard() {
   return (
-    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-sm font-bold text-slate-500 animate-pulse">Loading dashboard...</div>}>
       <StudentDashboardContent />
     </Suspense>
   );

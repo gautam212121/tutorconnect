@@ -1,12 +1,29 @@
+"use client";
+
+import { usePoll } from '../../../lib/api';
+import { Users, UserCheck, UserPlus, UserX } from 'lucide-react';
+
 export default function TutorStudentsPage() {
+  const { data: students = [], loading } = usePoll('/api/v1/tutor/students', 15000, []);
+
+  const total = students.length;
+  const active = students.filter(s => s.status === 'Active').length;
+  // A student is considered new if their last booking date was within the last 30 days
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const newStudents = students.filter(s => s.lastBookingDate && new Date(s.lastBookingDate) > thirtyDaysAgo).length;
+  const blocked = students.filter(s => s.status === 'Blocked').length;
+
   const stats = [
-    { title: 'All Students', value: 1820, badge: 'Total' },
-    { title: 'Active Students', value: 1580, badge: 'Active' },
-    { title: 'New Students', value: 120, badge: 'This Month' },
-    { title: 'Blocked Students', value: 35, badge: 'Blocked' },
+    { title: 'All Students', value: total, badge: 'Total', icon: <Users size={16} /> },
+    { title: 'Active Students', value: active, badge: 'Active', icon: <UserCheck size={16} /> },
+    { title: 'New Students', value: newStudents, badge: 'This Month', icon: <UserPlus size={16} /> },
+    { title: 'Blocked Students', value: blocked, badge: 'Blocked', icon: <UserX size={16} /> },
   ];
 
-  const rows = [];
+  if (loading && students.length === 0) {
+    return <div className="min-h-screen bg-slate-50 px-6 py-10 lg:px-8 animate-pulse text-slate-500 font-bold text-sm">Loading students...</div>;
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10 lg:px-8">
@@ -14,15 +31,18 @@ export default function TutorStudentsPage() {
         <section className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-teal-700">Students</p>
           <h1 className="mt-3 text-3xl font-semibold text-slate-900">Student management</h1>
-          <p className="mt-2 text-sm text-slate-500">View student counts, statuses, and progress at a glance.</p>
+          <p className="mt-2 text-sm text-slate-500">View your assigned students, their class history, and current status.</p>
         </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {stats.map((item) => (
             <div key={item.title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{item.title}</p>
+              <div className="flex items-center justify-between">
+                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{item.title}</p>
+                 <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">{item.icon}</div>
+              </div>
               <p className="mt-4 text-3xl font-extrabold text-slate-900">{item.value}</p>
-              <span className="mt-3 inline-flex rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">{item.badge}</span>
+              <span className="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold text-emerald-700 border border-emerald-100">{item.badge}</span>
             </div>
           ))}
         </section>
@@ -30,27 +50,49 @@ export default function TutorStudentsPage() {
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-bold text-slate-900">Student list</p>
-              <p className="text-xs text-slate-500">Monitor new, active, and blocked learners.</p>
+              <p className="text-sm font-bold text-slate-900">Assigned Students</p>
+              <p className="text-xs text-slate-500">List of students who have booked classes with you.</p>
             </div>
           </div>
           <div className="mt-6 overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-600">
               <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
                 <tr>
-                  <th className="py-3">Name</th>
-                  <th className="py-3">Email</th>
-                  <th className="py-3">Status</th>
-                  <th className="py-3">Progress</th>
+                  <th className="py-3 font-semibold">Student</th>
+                  <th className="py-3 font-semibold">Contact Info</th>
+                  <th className="py-3 font-semibold">Class / Grade</th>
+                  <th className="py-3 font-semibold">Total Classes</th>
+                  <th className="py-3 font-semibold">Last Booking</th>
+                  <th className="py-3 font-semibold text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map((row) => (
-                  <tr key={row.email}>
-                    <td className="py-4 font-semibold text-slate-900">{row.name}</td>
-                    <td className="py-4">{row.email}</td>
-                    <td className="py-4 text-slate-600">{row.status}</td>
-                    <td className="py-4 text-slate-600">{row.progress}</td>
+                {students.length === 0 ? (
+                   <tr><td colSpan="6" className="py-8 text-center text-xs text-slate-400">No students assigned yet.</td></tr>
+                ) : students.map((student) => (
+                  <tr key={student.id} className="hover:bg-slate-50/50 transition">
+                    <td className="py-4">
+                      <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-full bg-[#056852] text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                           {student.avatar ? <img src={student.avatar} className="w-full h-full object-cover" /> : student.name.charAt(0)}
+                         </div>
+                         <p className="font-semibold text-slate-900">{student.name}</p>
+                      </div>
+                    </td>
+                    <td className="py-4">
+                      <p className="text-xs text-slate-800">{student.email}</p>
+                      <p className="text-[10px] text-slate-400">{student.mobile || 'N/A'}</p>
+                    </td>
+                    <td className="py-4 text-xs font-semibold text-slate-700">{student.grade || 'N/A'}</td>
+                    <td className="py-4 text-xs font-semibold text-slate-700">{student.totalBookings} classes</td>
+                    <td className="py-4 text-xs text-slate-500">{student.lastBookingDate ? new Date(student.lastBookingDate).toLocaleDateString() : 'N/A'}</td>
+                    <td className="py-4 text-right">
+                      <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-bold ${
+                         student.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
+                      }`}>
+                         {student.status}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

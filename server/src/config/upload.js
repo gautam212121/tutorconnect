@@ -36,8 +36,7 @@ export const upload = multer({
 });
 
 export const getUploadedImageUrl = (filename) => {
-  const baseUrl = process.env.PUBLIC_URL || ' ';
-  return `${baseUrl.replace(/\/$/, '')}/uploads/${filename}`;
+  return `/uploads/${filename}`;
 };
 
 export { uploadDir };

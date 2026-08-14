@@ -66,20 +66,20 @@ export default function Navbar({ onOpenHowItWorks }) {
   useEffect(() => {
     if (user) return;
 
-    // Show initial timer popup after 12s, then repeat every 25s if user remains logged out
-    const timeout = setTimeout(() => {
+    const checkAndShowPopup = () => {
       const storedToken = localStorage.getItem('verifiedtutor-token');
-      if (!storedToken) {
-        setIsRegisterOpen(true);
-      }
-    }, 12000);
+      if (storedToken) return;
 
-    const interval = setInterval(() => {
-      const storedToken = localStorage.getItem('verifiedtutor-token');
-      if (!storedToken) {
+      const popupCount = parseInt(localStorage.getItem('vt-popup-count') || '0', 10);
+      if (popupCount < 3) {
         setIsRegisterOpen(true);
+        localStorage.setItem('vt-popup-count', (popupCount + 1).toString());
       }
-    }, 25000);
+    };
+
+    // Show initial timer popup after 12s, then repeat every 25s if user remains logged out
+    const timeout = setTimeout(checkAndShowPopup, 12000);
+    const interval = setInterval(checkAndShowPopup, 25000);
 
     return () => {
       clearTimeout(timeout);

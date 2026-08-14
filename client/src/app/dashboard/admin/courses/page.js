@@ -49,6 +49,12 @@ const Toast = ({ message, type, onClose }) => {
   );
 };
 
+const getImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('/uploads/')) return `${process.env.NEXT_PUBLIC_API_URL || ''}${url}`;
+  return url;
+};
+
 export default function CoursesAdminPage() {
   const [categories, setCategories] = useState([]);
   const [pending, setPending] = useState([]); // Real-world: fetch from API
@@ -270,7 +276,7 @@ export default function CoursesAdminPage() {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       {cat.image ? (
-                        <img src={cat.image} alt={cat.name} className="h-12 w-12 rounded-2xl object-cover border border-slate-100 shadow-sm" />
+                        <img src={getImageUrl(cat.image)} alt={cat.name} className="h-12 w-12 rounded-2xl object-cover border border-slate-100 shadow-sm" />
                       ) : (
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#056852]/10 text-xl text-[#056852]">
                           <BookOpen size={20} />

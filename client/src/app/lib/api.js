@@ -45,6 +45,10 @@ export function usePoll(path, intervalMs = 20000, initialValue = null) {
     let timer = null;
 
     async function poll() {
+      if (!path) {
+        if (mountedRef.current) setLoading(false);
+        return;
+      }
       try {
         const result = await fetchApi(path);
         if (mountedRef.current) {

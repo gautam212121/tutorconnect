@@ -47,6 +47,8 @@ const inMemoryTables = {
   subscriptions: [],
   withdrawals: [],
   courses: [],
+  assignments: [],
+  study_materials: [],
 };
 
 function extractTableName(sql) {
@@ -109,40 +111,19 @@ export async function execute(sql, params = []) {
 
       if (/INSERT INTO/i.test(sql)) {
         const newId = table.length + 1;
-        const record = { id: newId };
-        
+        const record = { id: newId, createdAt: new Date().toISOString() };
+
+        // Very basic mapping for fallback testing
         if (tableName === 'users') {
-          record.name = params[0];
-          record.email = params[1];
-          record.password = params[2];
-          record.role = params[3] || 'student';
-          record.status = params[5] || 'active';
+          record.name = params[0]; record.email = params[1]; record.password = params[2]; record.role = params[3] || 'student'; record.status = params[5] || 'active';
         } else if (tableName === 'bookings') {
-          record.student = params[2];
-          record.tutor = params[3];
-          record.subject = params[7];
-          record.grade = params[8];
-          record.mode = params[10];
-          record.message = params[13];
-          record.status = params[19] || 'Pending';
-        } else if (tableName === 'callback_requests') {
-          record.name = params[0];
-          record.phone = params[1];
-          record.role = params[2];
-          record.classLevel = params[3];
-          record.subject = params[4];
-          record.location = params[5];
-          record.mode = params[6];
-          record.tutor = params[7];
-          record.status = params[8] || 'Pending';
-        } else if (tableName === 'categories') {
-          record.name = params[0];
-          record.image = params[1] || null;
-          record.description = params[2] || null;
-          record.priority = params[3] || 'Medium';
-          record.status = params[4] || 'active';
-          record.type = params[5] || 'Academics';
-          record.curriculum = params[6] || null;
+          record.student = params[2]; record.tutor = params[3]; record.subject = params[7]; record.status = params[19] || 'Pending';
+        } else if (tableName === 'courses') {
+          record.title = params[0]; record.description = params[1]; record.subject = params[2]; record.price = params[4]; record.tutor = params[8]; record.status = params[7] || 'active';
+        } else if (tableName === 'assignments') {
+          record.title = params[0]; record.description = params[1]; record.courseId = params[2]; record.tutorId = params[3]; record.dueDate = params[4]; record.status = params[5] || 'active';
+        } else if (tableName === 'study_materials') {
+          record.title = params[0]; record.fileUrl = params[1]; record.courseId = params[2]; record.tutorId = params[3]; record.type = params[4];
         }
 
         table.push(record);

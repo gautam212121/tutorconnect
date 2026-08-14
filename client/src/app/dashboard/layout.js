@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BookOpen, LayoutDashboard, Calendar, UserCheck, LogOut, Home,
-  GraduationCap, MessageSquare, Bell, Settings, Star, Video,
+  GraduationCap, MessageSquare, MessageCircle, Bell, Settings, Star, Video,
   User, CreditCard, FileText, Folder, BarChart2, Menu, X,
   Search, Gift, HelpCircle, TrendingUp, ArrowRight, ChevronRight,
 } from 'lucide-react';
@@ -20,8 +20,12 @@ export default function DashboardLayout({ children }) {
   const isAdminRoute = pathname?.startsWith('/dashboard/admin');
 
   // Poll notifications for badge count
-  const { data: notifs } = usePoll('/api/v1/notifications', 30000, []);
+  const { data: notifs } = usePoll(!isAdminRoute ? '/api/v1/notifications' : null, 30000, []);
   const unreadCount = Array.isArray(notifs) ? notifs.filter((n) => !n.read).length : 0;
+
+  // Poll messages for badge count
+  const { data: conversations } = usePoll(user && !isAdminRoute ? `/api/v1/messages/inbox/${user.id}` : null, 30000, []);
+  const unreadMessagesCount = Array.isArray(conversations) ? conversations.reduce((acc, conv) => acc + (conv.unread || 0), 0) : 0;
 
   useEffect(() => {
     if (isAdminRoute) return;
@@ -64,17 +68,18 @@ export default function DashboardLayout({ children }) {
   const roleNavs = {
     student: [
       { key: 'dashboard', name: 'Dashboard', href: '/dashboard/student', icon: LayoutDashboard, exact: true },
-      { key: 'my-tutor', name: 'My Tutor', href: '/dashboard/student?section=my-tutor', icon: User },
+      { key: 'bookings', name: 'My Bookings', href: '/dashboard/student?section=bookings', icon: Calendar },
       { key: 'schedule', name: 'My Schedule', href: '/dashboard/student?section=schedule', icon: Calendar },
-      { key: 'subjects', name: 'My Subjects', href: '/dashboard/student?section=subjects', icon: BookOpen },
-      { key: 'homework', name: 'Homework & Notes', href: '/dashboard/student?section=homework', icon: FileText },
-      { key: 'messages', name: 'Messages', href: '/dashboard/student?section=messages', icon: MessageSquare, badge: 2 },
+      { key: 'subjects', name: 'Subjects', href: '/dashboard/student?section=subjects', icon: BookOpen },
+      { key: 'find-tutors', name: 'Find Tutors', href: '/tutors', icon: User },
+      { key: 'messages', name: 'Messages', href: '/dashboard/student?section=messages', icon: MessageSquare, badge: unreadMessagesCount },
+      { key: 'assignments', name: 'Assignments', href: '/dashboard/student?section=assignments', icon: FileText },
       { key: 'payments', name: 'Payments', href: '/dashboard/student?section=payments', icon: CreditCard },
-      { key: 'notifications', name: 'Notifications', href: '/dashboard/student?section=notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : null },
       { key: 'progress', name: 'My Progress', href: '/dashboard/student?section=progress', icon: TrendingUp },
-      { key: 'refer', name: 'Refer & Earn', href: '/dashboard/student?section=refer', icon: Gift },
+      { key: 'reviews', name: 'Reviews', href: '/dashboard/student?section=reviews', icon: Star },
+      { key: 'notifications', name: 'Notifications', href: '/dashboard/student?section=notifications', icon: Bell, badge: unreadCount },
       { key: 'settings', name: 'Settings', href: '/dashboard/student?section=settings', icon: Settings },
-      { key: 'help', name: 'Help & Support', href: '/dashboard/student?section=help', icon: HelpCircle },
+      { key: 'support', name: 'Support', href: '/dashboard/student?section=support', icon: HelpCircle },
     ],
     tutor: [
       { key: 'dashboard', name: 'Overview', href: '/dashboard/tutor', icon: LayoutDashboard, exact: true },
@@ -84,11 +89,11 @@ export default function DashboardLayout({ children }) {
       { key: 'live', name: 'Live Classes', href: '/dashboard/tutor/live-classes', icon: Video },
       { key: 'material', name: 'Study Material', href: '/dashboard/tutor/study-material', icon: FileText },
       { key: 'assignments', name: 'Assignments', href: '/dashboard/tutor/assignments', icon: Folder },
-      { key: 'messages', name: 'Messages', href: '/dashboard/tutor/messages', icon: MessageSquare, badge: 9 },
+      { key: 'messages', name: 'Messages', href: '/dashboard/tutor/messages', icon: MessageSquare, badge: unreadMessagesCount },
       { key: 'reviews', name: 'Reviews', href: '/dashboard/tutor/reviews', icon: Star },
       { key: 'earnings', name: 'Earnings', href: '/dashboard/tutor/earnings', icon: CreditCard },
       { key: 'analytics', name: 'Analytics', href: '/dashboard/tutor?section=analytics', icon: BarChart2 },
-      { key: 'notifications', name: 'Notifications', href: '/dashboard/tutor/notifications', icon: Bell, badge: 3 },
+      { key: 'notifications', name: 'Notifications', href: '/dashboard/tutor/notifications', icon: Bell, badge: unreadCount },
       { key: 'profile', name: 'Profile', href: '/dashboard/tutor/profile', icon: User },
       { key: 'settings', name: 'Settings', href: '/dashboard/tutor/settings', icon: Settings },
     ],
@@ -166,23 +171,15 @@ export default function DashboardLayout({ children }) {
           })}
         </nav>
 
-        {/* Bottom: CTA for student + logout */}
-        <div className="shrink-0 border-t border-slate-100 px-4 pb-4 pt-3 space-y-2">
-
-          <div className="flex items-center gap-1">
-            <Link
-              href="/"
-              className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
-            >
-              <Home size={13} /> Public Site
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-semibold text-rose-500 hover:bg-rose-50 transition"
-            >
-              <LogOut size={13} /> Sign Out
-            </button>
-          </div>
+        {/* Bottom: Logout */}
+        <div className="shrink-0 px-4 pb-4 pt-2">
+          <button
+            onClick={handleLogout}
+            className="w-full group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12.5px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-all duration-150"
+          >
+            <LogOut size={16} className="shrink-0 text-slate-400 group-hover:text-slate-600" />
+            <span className="flex-1 truncate text-left">Logout</span>
+          </button>
         </div>
       </aside>
 
@@ -220,9 +217,49 @@ export default function DashboardLayout({ children }) {
       )}
 
       {/* ── MAIN CONTENT ─────────────────────────────────────────────────────── */}
-      <main className="min-h-screen md:pl-64">
+      <main className="min-h-screen md:pl-64 pb-16 md:pb-0">
         {children}
       </main>
+
+      {/* ── MOBILE BOTTOM NAV ────────────────────────────────────────────────── */}
+      {!isAdminRoute && user && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between bg-white border-t border-slate-200 px-4 py-2 pb-safe md:hidden shadow-[0_-4px_15px_rgba(0,0,0,0.05)]">
+          {[
+            { key: 'dashboard', name: 'Home', href: `/dashboard/${role}`, icon: Home },
+            { key: 'bookings', name: 'Bookings', href: role === 'student' ? '/dashboard/student?section=bookings' : '/dashboard/tutor?section=schedule', icon: Calendar },
+            { key: 'messages', name: 'Messages', href: role === 'student' ? '/dashboard/student?section=messages' : '/dashboard/tutor/messages', icon: MessageCircle, badge: unreadMessagesCount },
+            { key: 'notifications', name: 'Notifications', href: role === 'student' ? '/dashboard/student?section=notifications' : '/dashboard/tutor/notifications', icon: Bell, badge: unreadCount },
+            { key: 'profile', name: 'Profile', href: role === 'student' ? '/dashboard/student?section=settings' : '/dashboard/tutor/profile', icon: User },
+          ].map((item) => {
+            const Icon = item.icon;
+            const active = isActive({ ...item, exact: item.key === 'dashboard' });
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={`relative flex flex-col items-center justify-center gap-1 w-16 transition-colors ${
+                  active ? 'text-[#056852]' : 'text-slate-500'
+                }`}
+              >
+                <div className="relative">
+                  <Icon
+                    size={22}
+                    className={active && item.key === 'dashboard' ? 'fill-[#056852]' : ''}
+                  />
+                  {item.badge > 0 && (
+                    <span className="absolute -right-2 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white border-2 border-white">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[10px] ${active ? 'font-bold' : 'font-medium'}`}>
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

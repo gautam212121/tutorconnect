@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import AnimatedCounter from './components/AnimatedCounter';
 import BookingModal from './components/BookingModal';
 import RegisterModal from './components/RegisterModal';
@@ -15,6 +16,12 @@ import {
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || ' ';
+
+const getImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('/uploads/')) return `${API}${url}`;
+  return url;
+};
 
 // Subject icons mapping
 const SUBJECT_ICONS = {
@@ -340,7 +347,7 @@ export default function HomePage() {
             <div className="relative w-full mt-8 lg:mt-0">
               <div className="w-full h-[320px] sm:h-[460px] lg:h-[420px] rounded-3xl overflow-hidden relative shadow-lg">
                 <img
-                  src={heroSettings.heroImage || '/hero-banner.jpg'}
+                  src={getImageUrl(heroSettings.heroImage || '/hero-banner.jpg')}
                   alt="Quality Home Tuition"
                   className="w-full h-full object-cover"
                 />
@@ -420,7 +427,7 @@ export default function HomePage() {
               >
                 <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-slate-50 transition group-hover:bg-emerald-50">
                   {sub.image ? (
-                    <img src={sub.image} alt={sub.name} className="h-full w-full object-cover" />
+                    <img src={getImageUrl(sub.image)} alt={sub.name} className="h-full w-full object-cover" />
                   ) : (
                     <span className="text-xl">{SUBJECT_ICONS[sub.name] || '📖'}</span>
                   )}
@@ -445,7 +452,7 @@ export default function HomePage() {
               >
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-slate-50 transition group-hover:bg-emerald-50">
                   {sub.image ? (
-                    <img src={sub.image} alt={sub.name} className="h-full w-full object-cover" />
+                    <img src={getImageUrl(sub.image)} alt={sub.name} className="h-full w-full object-cover" />
                   ) : (
                     <span className="text-2xl">{SUBJECT_ICONS[sub.name] || '📖'}</span>
                   )}
@@ -867,172 +874,7 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════════════ FOOTER ═══════════════════════ */}
-      <footer className="bg-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
-            {/* Brand */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <img src="/verified-tutor-logo.png" alt="Verified Tutor" className="h-8 w-auto object-contain" />
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                Connecting students with the right tutors for better learning and brighter futures.
-              </p>
-              <div className="space-y-2 text-xs text-slate-400 mb-4">
-                <p className="flex items-center gap-2"><MapPin size={12} /> Lucknow, Uttar Pradesh, India</p>
-                <p className="flex items-center gap-2">
-                  <Phone size={12} />
-                  <a href="tel:+919044195981" className="hover:underline hover:text-white transition">+91 90441 95981</a>
-                </p>
-                <p className="flex items-center gap-2">
-                  <Mail size={12} />
-                  <a href="mailto:verifiedtutor.in@gmail.com" className="hover:underline hover:text-white transition">verifiedtutor.in@gmail.com</a>
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <a
-                  href="https://www.facebook.com/share/1JdUJuQVYe/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-emerald-600 transition"
-                  title="Facebook"
-                >
-                  <Facebook size={14} />
-                </a>
-                <a
-                  href="https://www.instagram.com/verifiedtutor?igsh=MWh3d3U5Y2JxMmN1YQ=="
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-emerald-600 transition"
-                  title="Instagram"
-                >
-                  <Instagram size={14} />
-                </a>
-                <a
-                  href="https://youtube.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-emerald-600 transition"
-                  title="YouTube"
-                >
-                  <Youtube size={14} />
-                </a>
-                <a
-                  href="https://linkedin.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-emerald-600 transition"
-                  title="LinkedIn"
-                >
-                  <Linkedin size={14} />
-                </a>
-              </div>
-            </div>
-
-            {/* For Students */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-4">For Students</h4>
-              <ul className="space-y-2 text-xs text-slate-400">
-                {[
-                  { label: 'Find a Tutor', href: '/?register=true' },
-                  { label: 'How It Works', href: '/how-it-works' },
-                  { label: 'Subjects', href: '/subjects' },
-                  { label: 'Exams', href: '/subjects' },
-                  { label: 'Safety & Security', href: '/why-us' },
-                ].map((item, i) => (
-                  <li key={i}>
-                    <Link href={item.href} className="hover:text-white transition">
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* For Tutors */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-4">For Tutors</h4>
-              <ul className="space-y-2 text-xs text-slate-400">
-                {[
-                  { label: 'Become a Tutor', href: '/careers' },
-                  { label: 'How Tutors Earn', href: '/how-it-works' },
-                  { label: 'Pricing & Commission', href: '/why-us' },
-                  { label: 'Help Center', href: '/about' },
-                ].map((item, i) => (
-                  <li key={i}>
-                    <Link href={item.href} className="hover:text-white transition">
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Company & Newsletter */}
-            <div>
-              <div className="mb-8">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-4">Company</h4>
-                <ul className="space-y-2 text-xs text-slate-400">
-                  {[
-                    { label: 'About Us', href: '/about' },
-                    { label: 'Blog', href: '/blog' },
-                    { label: 'Terms & Conditions', href: '/about' },
-                    { label: 'Privacy Policy', href: '/about' },
-                  ].map((item, i) => (
-                    <li key={i}>
-                      <Link href={item.href} className="hover:text-white transition">
-                        {item.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-3">Newsletter</h4>
-                <p className="text-xs text-slate-400 mb-3">Subscribe to get tips, updates and learning strategies.</p>
-                <form onSubmit={handleNewsletterSubscribe} className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="email"
-                    required
-                    placeholder="Email Address"
-                    value={newsletterEmail}
-                    onChange={(e) => setNewsletterEmail(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={newsletterStatus === 'loading'}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 rounded-lg text-xs font-bold text-white transition whitespace-nowrap"
-                  >
-                    {newsletterStatus === 'loading' ? 'Subscribing...' : 'Subscribe'}
-                  </button>
-                </form>
-                {newsletterMessage && (
-                  <p className={`mt-2 text-[11px] font-semibold ${newsletterStatus === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {newsletterMessage}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom bar */}
-        <div className="border-t border-slate-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p className="text-xs text-slate-500">© {new Date().getFullYear()} Verified Tutor. All Rights Reserved.</p>
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-slate-500">Payment Partners:</span>
-              <div className="flex gap-2 items-center">
-                {['Razorpay', 'Visa', 'Mastercard', 'UPI'].map((p, i) => (
-                  <span key={i} className="px-2 py-0.5 bg-slate-800 rounded text-[10px] text-slate-400 font-semibold">{p}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* ═══════════════════════ BOOKING MODAL ═══════════════════════ */}
       {selectedTutorForBooking && (

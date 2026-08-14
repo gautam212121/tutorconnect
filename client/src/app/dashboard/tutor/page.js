@@ -10,6 +10,7 @@ import {
   RefreshCw, AlertCircle, Zap, Crown, Info, FileText, MessageSquare,
   BarChart2, BadgeCheck, CircleDollarSign, ExternalLink, Phone,
 } from 'lucide-react';
+import { usePoll } from '../../lib/api';
 
 const API = process.env.NEXT_PUBLIC_API_URL || ' ';
 
@@ -42,7 +43,7 @@ function TutorDashboardContent() {
   const searchParams = useSearchParams();
   const section = searchParams.get('section');
   const [user, setUser] = useState(null);
-  const [dashboard, setDashboard] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [commissionStructure, setCommissionStructure] = useState(null);
 
@@ -50,20 +51,20 @@ function TutorDashboardContent() {
     const stored = localStorage.getItem('verifiedtutor-user');
     if (stored) setUser(JSON.parse(stored));
 
-    const token = localStorage.getItem('verifiedtutor-token');
-    if (!token) return;
-
-    Promise.all([
-      fetch(`${API}/api/v1/tutor/dashboard`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-      fetch(`${API}/api/v1/config/commission`).then(r => r.json()),
-    ])
-      .then(([dashData, commData]) => {
-        setDashboard(dashData);
-        setCommissionStructure(commData);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    fetch(`${API}/api/v1/config/commission`)
+      .then(r => r.json())
+      .then(setCommissionStructure)
+      .catch(() => {});
   }, []);
+
+  const { data: dashboard, loading: dashLoading } = usePoll('/api/v1/tutor/dashboard', 10000, null);
+  
+  // Combine loading state
+  useEffect(() => {
+    if (!dashLoading && dashboard) {
+      setLoading(false);
+    }
+  }, [dashLoading, dashboard]);
 
   if (loading) {
     return (

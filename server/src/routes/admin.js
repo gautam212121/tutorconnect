@@ -26,9 +26,13 @@ router.get('/settings', async (req, res) => {
   }
 });
 
-router.put('/settings', async (req, res) => {
+router.put('/settings', upload.single('heroImageFile'), async (req, res) => {
   try {
-    const settings = await Settings.findOneAndUpdate({}, req.body);
+    const payload = { ...req.body };
+    if (req.file) {
+      payload.heroImage = getUploadedImageUrl(req.file.filename);
+    }
+    const settings = await Settings.findOneAndUpdate({}, payload);
     getIo(req)?.emit('settingsUpdated', settings);
     res.json(settings);
   } catch (err) {
