@@ -188,23 +188,66 @@ router.get('/users/:id', async (req, res) => {
   }
 });
 
-router.post('/users', async (req, res) => {
+router.post('/users', upload.single('avatar'), async (req, res) => {
   try {
     const userData = { ...req.body };
+    ['subjects', 'mode', 'classesTaught', 'languages', 'availableDays'].forEach(field => {
+      if (typeof userData[field] === 'string') {
+        try { userData[field] = JSON.parse(userData[field]); } catch (e) { /* ignore */ }
+      }
+    });
     if (userData.password) {
       userData.password = await bcrypt.hash(userData.password, 10);
+    }
+    if (req.file) {
+      userData.avatar = getUploadedImageUrl(req.file.filename);
     }
     const user = await User.create(userData);
     getIo(req)?.emit('userCreated', user);
     res.status(201).json(user);
   } catch (err) {
+    console.error("Error creating user from admin:", err);
     res.status(400).json({ message: err.message });
   }
 });
 
-router.put('/users/:id', async (req, res) => {
+router.post('/test-users', upload.single('avatar'), async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body);
+    const userData = { ...req.body };
+    ['subjects', 'mode', 'classesTaught', 'languages', 'availableDays'].forEach(field => {
+      if (typeof userData[field] === 'string') {
+        try { userData[field] = JSON.parse(userData[field]); } catch (e) { /* ignore */ }
+      }
+    });
+    if (userData.password) {
+      userData.password = await bcrypt.hash(userData.password, 10);
+    }
+    if (req.file) {
+      userData.avatar = getUploadedImageUrl(req.file.filename);
+    }
+    const user = await User.create(userData);
+    res.status(201).json(user);
+  } catch (err) {
+    console.error("Error in test-users:", err);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.put('/users/:id', upload.single('avatar'), async (req, res) => {
+  try {
+    const updates = { ...req.body };
+    ['subjects', 'mode', 'classesTaught', 'languages', 'availableDays'].forEach(field => {
+      if (typeof updates[field] === 'string') {
+        try { updates[field] = JSON.parse(updates[field]); } catch (e) { /* ignore */ }
+      }
+    });
+    if (req.file) {
+      updates.avatar = getUploadedImageUrl(req.file.filename);
+    }
+    if (updates.password) {
+      updates.password = await bcrypt.hash(updates.password, 10);
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true });
     getIo(req)?.emit('userUpdated', user);
     res.json(user);
   } catch (err) {

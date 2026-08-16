@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Search, Filter, CheckCircle2, XCircle, AlertTriangle, Eye, Trash2, Ban, Star, Shield, UserCheck, MoreVertical, ChevronDown, User, Upload } from 'lucide-react';
+import { Search, Filter, CheckCircle2, XCircle, AlertTriangle, Eye, Trash2, Ban, Star, Shield, UserCheck, MoreVertical, ChevronDown, User, Upload, Edit, Save } from 'lucide-react';
 import Link from 'next/link';
 import { adminApi } from '../../../../lib/api';
 import { useSocket } from '../../../../hooks/useSocket';
@@ -44,6 +44,8 @@ export default function TutorsAdminPage() {
   const [actionMenu, setActionMenu] = useState(null);
   const [selectedTab, setSelectedTab] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editTutor, setEditTutor] = useState(null);
   const [changingStatus, setChangingStatus] = useState(null); // tutor id whose dropdown is open
   const [newTutor, setNewTutor] = useState({
     name: '', email: '', password: '', mobile: '', location: '',
@@ -80,8 +82,8 @@ export default function TutorsAdminPage() {
   useEffect(() => {
     if (!changingStatus) return;
     const close = () => setChangingStatus(null);
-    document.addEventListener('click', close, true);
-    return () => document.removeEventListener('click', close, true);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
   }, [changingStatus]);
 
   useEffect(() => {
@@ -150,6 +152,7 @@ export default function TutorsAdminPage() {
       }
     } catch (err) {
       console.error(err);
+      alert('Error updating status: ' + (err.response?.data?.message || err.message));
     }
     setChangingStatus(null);
     setActionMenu(null);
@@ -158,27 +161,46 @@ export default function TutorsAdminPage() {
   const handleAddTutor = async (e) => {
     e.preventDefault();
     try {
-      const formData = new FormData();
-      formData.append('name', newTutor.name || '');
-      formData.append('email', newTutor.email || '');
-      formData.append('password', newTutor.password || '');
-      formData.append('mobile', newTutor.mobile || '');
-      formData.append('location', newTutor.location || '');
-      formData.append('headline', newTutor.headline || 'Tutor');
-      formData.append('experience', newTutor.experience || '1 year');
-      formData.append('role', 'tutor');
-      formData.append('status', 'verified');
-      formData.append('verified', 'true');
-      formData.append('subjects', JSON.stringify(newTutor.subjects ? newTutor.subjects.split(',').map(s => s.trim()).filter(Boolean) : ['General']));
-      formData.append('price', String(newTutor.price || 500));
-      formData.append('mode', JSON.stringify(newTutor.mode || ['Online']));
-      formData.append('rating', String(newTutor.rating || 5));
-      formData.append('reviews', String(newTutor.reviews || 0));
+      let addedUser;
       if (newTutor.avatarFile) {
+        const formData = new FormData();
+        formData.append('name', newTutor.name || '');
+        formData.append('email', newTutor.email || '');
+        formData.append('password', newTutor.password || '');
+        formData.append('mobile', newTutor.mobile || '');
+        formData.append('location', newTutor.location || '');
+        formData.append('headline', newTutor.headline || 'Tutor');
+        formData.append('experience', newTutor.experience || '1 year');
+        formData.append('role', 'tutor');
+        formData.append('status', 'verified');
+        formData.append('verified', 'true');
+        formData.append('subjects', JSON.stringify(newTutor.subjects ? newTutor.subjects.split(',').map(s => s.trim()).filter(Boolean) : ['General']));
+        formData.append('price', String(newTutor.price || 500));
+        formData.append('mode', JSON.stringify(newTutor.mode || ['Online']));
+        formData.append('rating', String(newTutor.rating || 5));
+        formData.append('reviews', String(newTutor.reviews || 0));
         formData.append('avatar', newTutor.avatarFile);
+        addedUser = await adminApi.createUserMultipart(formData);
+      } else {
+        const data = {
+          name: newTutor.name || '',
+          email: newTutor.email || '',
+          password: newTutor.password || '',
+          mobile: newTutor.mobile || '',
+          location: newTutor.location || '',
+          headline: newTutor.headline || 'Tutor',
+          experience: newTutor.experience || '1 year',
+          role: 'tutor',
+          status: 'verified',
+          verified: true,
+          subjects: newTutor.subjects ? newTutor.subjects.split(',').map(s => s.trim()).filter(Boolean) : ['General'],
+          price: newTutor.price || 500,
+          mode: newTutor.mode || ['Online'],
+          rating: newTutor.rating || 5,
+          reviews: newTutor.reviews || 0
+        };
+        addedUser = await adminApi.createUser(data);
       }
-
-      const addedUser = await adminApi.createUser(formData);
 
       if (addedUser) {
         const formattedUser = {
@@ -198,11 +220,11 @@ export default function TutorsAdminPage() {
           mode: ['Online'], rating: 5, reviews: 0, avatar: '', avatarFile: null
         });
       } else {
-        alert('Failed to add tutor');
+        alert('Failed to add tutor: No response from server');
       }
     } catch (err) {
       console.error(err);
-      alert('Error adding tutor');
+      alert('Error adding tutor: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -217,7 +239,9 @@ export default function TutorsAdminPage() {
   ];
 
   const filtered = allTutors.filter(t => {
-    const matchTab = selectedTab === 'all' || t.status === selectedTab;
+    const matchTab = selectedTab === 'all' 
+      || t.status === selectedTab 
+      || (selectedTab === 'active' && t.status === 'verified');
     const matchSearch = !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.email.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
@@ -312,18 +336,37 @@ export default function TutorsAdminPage() {
                 <tr key={t.id} className="hover:bg-slate-50/50 transition">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#056852]/10 text-[11px] font-bold text-[#056852]">
-                        {t.name.charAt(0)}
+                      <div className="flex h-8 w-8 shrink-0 overflow-hidden items-center justify-center rounded-xl bg-[#056852]/10 text-[11px] font-bold text-[#056852]">
+                        {t.avatar ? (
+                          <img src={getImageUrl(t.avatar)} alt={t.name} className="h-full w-full object-cover" />
+                        ) : (
+                          t.name.charAt(0)
+                        )}
                       </div>
                       <div>
                         <p className="font-semibold text-slate-900">{t.name}</p>
                         <p className="text-[10px] text-slate-400">{t.email}</p>
+                        {t.mobile && t.mobile !== 'N/A' ? (
+                          <a 
+                            href={`https://wa.me/${t.mobile.replace(/\D/g, '')}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-[10px] text-emerald-600 hover:text-emerald-700 hover:underline inline-flex items-center gap-1"
+                          >
+                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+                            </svg>
+                            {t.mobile}
+                          </a>
+                        ) : (
+                          <p className="text-[10px] text-slate-400">N/A</p>
+                        )}
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {t.subjects.map((s, i) => (
+                      {(Array.isArray(t.subjects) ? t.subjects : (typeof t.subjects === 'string' ? t.subjects.replace(/[\[\]"\\]/g, '').split(',').filter(Boolean) : [])).map((s, i) => (
                         <span key={i} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">{s}</span>
                       ))}
                     </div>
@@ -343,7 +386,7 @@ export default function TutorsAdminPage() {
                   <td className="px-4 py-3">
                     <div className="relative">
                       <button
-                        onClick={() => setChangingStatus(changingStatus === t.id ? null : t.id)}
+                        onClick={(e) => { e.stopPropagation(); setChangingStatus(changingStatus === t.id ? null : t.id); }}
                         className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase border transition hover:opacity-80 ${
                           (statusStyles[t.status] || statusStyles.pending).cls
                         }`}
@@ -377,6 +420,20 @@ export default function TutorsAdminPage() {
                         <Eye size={14} />
                       </Link>
                       <button
+                        onClick={() => {
+                          setEditTutor({
+                            ...t,
+                            subjects: t.subjects.join(', '),
+                            mode: t.mode || [],
+                          });
+                          setIsEditModalOpen(true);
+                        }}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-600 hover:bg-amber-200 transition"
+                        title="Edit Profile"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
                         onClick={() => handleAction(t.id, 'rejected')}
                         className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition"
                         title="Delete"
@@ -400,6 +457,133 @@ export default function TutorsAdminPage() {
           </table>
         </div>
       </div>
+
+      {/* Edit Tutor Modal */}
+      {isEditModalOpen && editTutor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-[28px] bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50 shrink-0">
+              <h3 className="text-base font-extrabold text-slate-900">Edit Tutor Profile</h3>
+              <button onClick={() => { setIsEditModalOpen(false); setEditTutor(null); }} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition">
+                <XCircle size={20} />
+              </button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                let updated;
+                if (editTutor.avatarFile) {
+                  const formData = new FormData();
+                  formData.append('name', editTutor.name || '');
+                  formData.append('email', editTutor.email || '');
+                  formData.append('mobile', editTutor.mobile || '');
+                  formData.append('location', editTutor.location || '');
+                  formData.append('experience', editTutor.experience || '');
+                  formData.append('price', String(editTutor.price || 0));
+                  let subjectsArray = typeof editTutor.subjects === 'string' 
+                      ? editTutor.subjects.split(',').map(s => s.trim()).filter(Boolean)
+                      : editTutor.subjects;
+                  formData.append('subjects', JSON.stringify(subjectsArray));
+                  formData.append('avatar', editTutor.avatarFile);
+                  
+                  updated = await adminApi.updateUserMultipart(editTutor.id, formData);
+                } else {
+                  const updates = { ...editTutor };
+                  if (typeof updates.subjects === 'string') {
+                    updates.subjects = updates.subjects.split(',').map(s => s.trim()).filter(Boolean);
+                  }
+                  updated = await adminApi.updateUser(editTutor.id, updates);
+                }
+
+                if (updated) {
+                  const finalAvatar = editTutor.avatarFile ? editTutor.avatar : editTutor.avatar;
+                  setApiTutors(prev => prev.map(t => t.id === editTutor.id ? { ...t, ...editTutor, avatar: finalAvatar, subjects: typeof editTutor.subjects === 'string' ? editTutor.subjects.split(',').map(s=>s.trim()).filter(Boolean) : editTutor.subjects } : t));
+                  setIsEditModalOpen(false);
+                  setEditTutor(null);
+                }
+              } catch (err) {
+                console.error(err);
+                alert('Failed to update tutor');
+              }
+            }} className="p-6 space-y-5 overflow-y-auto min-h-0">
+              {/* Profile Photo */}
+              <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
+                {editTutor.avatar ? (
+                  <img src={editTutor.avatar} alt="Preview" className="h-14 w-14 rounded-2xl object-cover border border-slate-200" />
+                ) : (
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-slate-400">
+                    <User size={20} />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Avatar Photo</label>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+
+                      const validMime = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+                      if (!validMime.includes(file.type.toLowerCase())) {
+                        alert('Only JPG, PNG, or WEBP images are allowed');
+                        e.target.value = '';
+                        return;
+                      }
+
+                      setEditTutor({ ...editTutor, avatar: URL.createObjectURL(file), avatarFile: file });
+                    }}
+                    className="w-full text-xs text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-[#056852]/10 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-[#056852] hover:file:bg-[#056852]/20 cursor-pointer outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Full Name</label>
+                  <input required type="text" value={editTutor.name} onChange={e => setEditTutor({...editTutor, name: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Email</label>
+                  <input required type="email" value={editTutor.email} onChange={e => setEditTutor({...editTutor, email: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Mobile</label>
+                  <input type="text" value={editTutor.mobile} onChange={e => setEditTutor({...editTutor, mobile: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Location</label>
+                  <input required type="text" value={editTutor.location} onChange={e => setEditTutor({...editTutor, location: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Experience</label>
+                  <input required type="text" value={editTutor.experience} onChange={e => setEditTutor({...editTutor, experience: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Price per Hour (₹)</label>
+                  <input required type="number" value={editTutor.price} onChange={e => setEditTutor({...editTutor, price: parseInt(e.target.value) || 0})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Subjects (Comma separated)</label>
+                <input required type="text" value={editTutor.subjects} onChange={e => setEditTutor({...editTutor, subjects: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#056852] outline-none" />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100 shrink-0">
+                <button type="button" onClick={() => { setIsEditModalOpen(false); setEditTutor(null); }} className="rounded-xl px-5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 transition">Cancel</button>
+                <button type="submit" className="rounded-xl bg-[#056852] px-5 py-2 text-xs font-bold text-white hover:bg-[#045241] transition shadow-md">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add Tutor Modal */}
       {isAddModalOpen && (

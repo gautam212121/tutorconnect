@@ -229,21 +229,21 @@ export default function HomePage() {
       {/* ═══════════════════════ HERO SECTION ═══════════════════════ */}
       <section className="relative bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pb-0">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
+          <div className="grid lg:grid-cols-2 items-center">
             {/* Left content */}
             <div>
-              <h1 className="text-4xl sm:text-5xl lg:text-[42px] font-extrabold text-slate-900 leading-[1.1] tracking-tight">
+              <h1 className="text-3xl sm:text-5xl lg:text-[42px] font-extrabold text-slate-900 leading-[1.1] tracking-tight">
                 Find the Right Tutor.{' '}
                 <span className="text-emerald-600">Learn Better.</span>{' '}
                 <span className="text-emerald-600">Achieve More.</span>
               </h1>
-              <p className="mt-5 text-sm text-slate-500 max-w-lg leading-relaxed">
+              <p className="mt-2 text-sm text-slate-500 max-w-lg leading-relaxed">
                 Personalized home tuitions for Class 1 to 12, JEE, NEET and all major subjects.
                 Verified tutors. Real results.
               </p>
 
               {/* Search Bar */}
-              <div className="mt-8 flex flex-col sm:flex-row gap-3 max-w-2xl w-full">
+              <div className="mt-2 flex flex-col sm:flex-row gap-3 max-w-2xl w-full">
                 <div className="grid w-full grid-cols-[minmax(88px,auto)_1fr_auto] items-stretch overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 shadow-lg sm:flex sm:gap-3 sm:p-1.5">
                   {/* Location Dropdown */}
                   <select
@@ -284,7 +284,7 @@ export default function HomePage() {
               </div>
 
               {/* Student/Teacher Choice Cards */}
-              <div className="mt-12 grid grid-cols-2 gap-3 max-w-2xl sm:grid-cols-2 sm:gap-6">
+              <div className="mt-2 grid grid-cols-2 gap-3 max-w-2xl sm:grid-cols-2 sm:gap-6">
                 {/* Student Card */}
                 <div className="bg-white rounded-2xl border border-slate-200 p-3 text-center hover:shadow-lg transition-all duration-300 sm:p-6">
                   <h3 className="mb-1 text-sm font-bold text-slate-900 sm:mb-2 sm:text-xl">I'm a Student</h3>
@@ -295,7 +295,7 @@ export default function HomePage() {
                       setRegisterRole('student');
                       setIsRegisterOpen(true);
                     }}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-900 px-3 py-2.5 text-[11px] font-bold text-slate-900 transition-all duration-200 hover:bg-slate-900 hover:text-white sm:px-4 sm:py-3 sm:text-sm"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-900 px-3 py-2.5 text-[11px] text-slate-900 transition-all duration-200 hover:bg-slate-900 hover:text-white sm:px-4 sm:py-3 sm:text-sm"
                   >
                     <span className="hidden sm:inline">Register as Student</span>
                     <span className="sm:hidden">Register Student</span>
@@ -309,18 +309,15 @@ export default function HomePage() {
                   <h3 className="mb-1 text-sm font-bold text-slate-900 sm:mb-2 sm:text-xl">I'm a Teacher</h3>
                   <p className="mb-2 text-[11px] font-semibold text-emerald-700 sm:mb-4 sm:text-sm">Grow Your Impact</p>
                   <p className="mb-3 text-[10px] leading-relaxed text-slate-500 sm:mb-6 sm:text-xs">Reach more students, earn more, and build your teaching brand</p>
-                  <button
-                    onClick={() => {
-                      setRegisterRole('tutor');
-                      setIsRegisterOpen(true);
-                    }}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-emerald-700 px-3 py-2.5 text-[11px] font-bold text-emerald-700 transition-all duration-200 hover:bg-emerald-700 hover:text-white sm:px-4 sm:py-3 sm:text-sm"
+                  <Link
+                    href="/careers"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-emerald-700 px-3 py-2.5 text-[11px] text-emerald-700 transition-all duration-200 hover:bg-emerald-700 hover:text-white sm:px-4 sm:py-3 sm:text-sm"
                   >
                     <span className="hidden sm:inline">Register as Teacher</span>
                     <span className="sm:hidden">Register Teacher</span>
                     <ArrowRight size={14} className="sm:hidden" />
                     <ArrowRight size={16} className="hidden sm:block" />
-                  </button>
+                  </Link>
                 </div>
               </div>
 
@@ -485,7 +482,7 @@ export default function HomePage() {
               { step: '3', icon: <Calendar size={28} />, title: 'Start Learning', desc: 'Book a demo or start sessions at your convenient time.' },
               { step: '4', icon: <Award size={28} />, title: 'Achieve Your Goals', desc: 'Track progress and achieve better results.' },
             ].map((item, i) => (
-              <div key={i} className="relative text-center p-6">
+              <div key={i} className="relative text-center p-1">
                 <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mb-4">
                   {item.icon}
                 </div>
@@ -569,8 +566,12 @@ export default function HomePage() {
                   <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
                     <div className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-lg font-bold text-white">
-                          {tutor.name?.charAt(0)}
+                        <div className="flex h-12 w-12 shrink-0 overflow-hidden items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-lg font-bold text-white">
+                          {tutor.image ? (
+                            <img src={getImageUrl(tutor.image)} alt={tutor.name} className="h-full w-full object-cover" />
+                          ) : (
+                            tutor.name?.charAt(0)
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
@@ -619,8 +620,12 @@ export default function HomePage() {
                 <div key={tutor.id || i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 group">
                   <div className="p-5">
                     <div className="flex items-start gap-3">
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
-                        {tutor.name?.charAt(0)}
+                      <div className="w-14 h-14 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
+                        {tutor.image ? (
+                          <img src={getImageUrl(tutor.image)} alt={tutor.name} className="h-full w-full object-cover" />
+                        ) : (
+                          tutor.name?.charAt(0)
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">

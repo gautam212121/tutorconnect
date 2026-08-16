@@ -89,7 +89,7 @@ export default function AdminLayout({ children }) {
     </div>
   );
 
-  const sidebarW = isMobile ? 260 : (collapsed ? 72 : 260);
+  const sidebarW = isMobile ? 200 : (collapsed ? 72 : 200);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
@@ -155,7 +155,7 @@ export default function AdminLayout({ children }) {
                   <Link
                     href={item.href}
                     title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-semibold transition-all ${active ? 'bg-[#056852] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[10px] font-semibold transition-all ${active ? 'bg-[#056852] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                       }`}
                   >
                     <Icon size={17} className={`shrink-0 ${active ? 'text-white' : 'text-slate-500'}`} />
@@ -174,7 +174,7 @@ export default function AdminLayout({ children }) {
                   <>
                     <button
                       onClick={() => setExpanded(p => ({ ...p, [item.id]: !p[item.id] }))}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-semibold transition-all ${parentActive ? 'bg-[#e6f7f2] text-[#056852]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[10px] font-semibold transition-all ${parentActive ? 'bg-[#e6f7f2] text-[#056852]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                         }`}
                     >
                       <Icon size={17} className={`shrink-0 ${parentActive ? 'text-[#056852]' : 'text-slate-500'}`} />

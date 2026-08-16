@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  ArrowLeft, Edit, MessageSquare, MoreHorizontal, User, 
-  MapPin, Phone, Mail, Calendar, BookOpen, Clock, 
-  CreditCard, CheckCircle, XCircle 
+import {
+  ArrowLeft, Edit, MessageSquare, MoreHorizontal, User,
+  MapPin, Phone, Mail, Calendar, BookOpen, Clock,
+  CreditCard, CheckCircle, XCircle
 } from 'lucide-react';
 import { adminApi } from '../../../../../lib/api';
 
@@ -16,7 +16,7 @@ export default function StudentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const studentId = params.id;
-  
+
   const [student, setStudent] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [schedules, setSchedules] = useState([]);
@@ -61,7 +61,7 @@ export default function StudentDetailPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        const studentSchedules = data.filter(s => 
+        const studentSchedules = data.filter(s =>
           (s.student?._id === studentId || s.student?.id === studentId || s.student === studentId)
         );
         setSchedules(studentSchedules);
@@ -99,13 +99,13 @@ export default function StudentDetailPage() {
   // --- Derived Statistics ---
   const activeBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'Active' || b.status === 'Confirmed').length;
   const completedBookings = bookings.filter(b => b.status === 'completed' || b.status === 'Completed').length;
-  
+
   // Calculate payments and subjects based on bookings
   let totalPayments = 0;
   let dueAmount = 0;
   let totalSubjects = 0;
   let totalHours = 0;
-  
+
   // Aggregate unique subjects
   const subjectsSet = new Set();
   const selectedSubjectsList = [];
@@ -126,13 +126,13 @@ export default function StudentDetailPage() {
 
   // Schedule aggregation
   const fixedSchedule = schedules.filter(s => s.status === 'Approved');
-  
+
   // Real assigned tutor
   const assignedTutor = assignedTutors.length > 0 ? assignedTutors[0] : null;
-  
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6 bg-slate-50 min-h-screen">
-      
+    <div className="p-4 sm:p-6 lg:p-1 max-w-[1400px] mx-auto space-y-6 bg-slate-50 min-h-screen">
+
       {/* Breadcrumb & Navigation */}
       <div className="flex items-center text-sm text-slate-500 gap-2 mb-2">
         <Link href="/dashboard/admin" className="hover:text-emerald-600 transition">Dashboard</Link>
@@ -213,12 +213,11 @@ export default function StudentDetailPage() {
             } catch (err) {
               alert('Failed to update status');
             }
-          }} className={`flex items-center justify-center gap-2 px-4 py-2 bg-white border rounded-lg text-xs font-bold transition shadow-sm ${
-            (student.status === 'active' || student.status === 'verified') 
-            ? 'border-amber-500 text-amber-600 hover:bg-amber-50' 
+          }} className={`flex items-center justify-center gap-2 px-4 py-2 bg-white border rounded-lg text-xs font-bold transition shadow-sm ${(student.status === 'active' || student.status === 'verified')
+            ? 'border-amber-500 text-amber-600 hover:bg-amber-50'
             : 'border-emerald-500 text-emerald-600 hover:bg-emerald-50'
-          }`}>
-            {(student.status === 'active' || student.status === 'verified') ? <XCircle size={14} /> : <CheckCircle size={14} />} 
+            }`}>
+            {(student.status === 'active' || student.status === 'verified') ? <XCircle size={14} /> : <CheckCircle size={14} />}
             {(student.status === 'active' || student.status === 'verified') ? 'Deactivate' : 'Activate'}
           </button>
           <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition shadow-sm">
@@ -232,14 +231,14 @@ export default function StudentDetailPage() {
 
       {/* ── METRICS & SUMMARY ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Student Summary */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm lg:col-span-1 flex flex-col justify-between">
           <div className="flex items-center gap-2 mb-6">
             <User size={18} className="text-emerald-600" />
             <h3 className="font-bold text-slate-800">Student Summary</h3>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-y-6 gap-x-4">
             <div>
               <p className="text-xs text-slate-500 font-semibold mb-1">Total Bookings</p>
@@ -342,7 +341,7 @@ export default function StudentDetailPage() {
 
       {/* ── ROW 3: Payments, Tutors, Activity ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Payment Details */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm lg:col-span-1 flex flex-col">
           <div className="flex items-center gap-2 mb-6">
@@ -363,7 +362,7 @@ export default function StudentDetailPage() {
               <span className="text-slate-600">Total Subjects</span>
               <span className="font-bold text-slate-800">{totalSubjects}</span>
             </div>
-            
+
             <div className="flex justify-between items-center pt-2">
               <span className="text-slate-600">Total Hourly (All Subjects)</span>
               <span className="font-bold text-slate-800">₹{totalSubjects ? totalSubjects * 500 : 0} / hr</span>
@@ -372,7 +371,7 @@ export default function StudentDetailPage() {
               <span className="text-slate-600">Total Monthly (All Subjects)</span>
               <span className="font-bold text-slate-800">₹{totalSubjects ? totalSubjects * 4000 : 0} / month</span>
             </div>
-            
+
             <div className="flex justify-between items-center pt-2">
               <span className="text-emerald-700 font-bold">Total Paid</span>
               <span className="font-bold text-emerald-700">₹{totalPayments}</span>
@@ -390,7 +389,7 @@ export default function StudentDetailPage() {
 
         {/* Assigned Tutor & Additional Info */}
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-          
+
           {/* Assigned Tutor */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col">
             <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={16} className="text-[#059669]" /> Assigned Tutor</h3>
@@ -409,7 +408,7 @@ export default function StudentDetailPage() {
                     <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{assignedTutor.status === 'verified' ? 'Active' : assignedTutor.status}</span>
                   </div>
                   <p className="text-xs text-slate-600 mb-2 truncate px-2">{assignedTutor.headline || (assignedTutor.subjects ? `Expert in ${assignedTutor.subjects.join(', ')}` : 'Tutor')}</p>
-                  
+
                   <div className="mt-2 w-full space-y-2 text-xs">
                     <div className="flex items-center gap-1.5 text-slate-500 justify-center">
                       <Phone size={12} /> {assignedTutor.mobile || '+91 N/A'}
@@ -443,7 +442,7 @@ export default function StudentDetailPage() {
               <BookOpen size={18} className="text-emerald-600" />
               <h3 className="font-bold text-slate-800">Additional Information</h3>
             </div>
-            
+
             <div className="space-y-4 text-sm">
               <div className="flex flex-col">
                 <span className="text-slate-500 text-xs font-semibold">Learning Mode</span>
@@ -463,7 +462,7 @@ export default function StudentDetailPage() {
               </div>
             </div>
           </div>
-          
+
         </div>
 
       </div>
@@ -508,7 +507,7 @@ export default function StudentDetailPage() {
                 const updateId = editForm._id || editForm.id;
                 // Prepare updates (mapping flat fields for the API if needed)
                 const updates = { ...editForm };
-                
+
                 // Address handling
                 if (!updates.address) updates.address = {};
                 if (updates.city) updates.address.city = updates.city;
@@ -526,26 +525,26 @@ export default function StudentDetailPage() {
                 alert('Failed to update student');
               }
             }} className="p-6 space-y-4 overflow-y-auto">
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Full Name</label>
-                  <input required type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" />
+                  <input required type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Email</label>
-                  <input required type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" />
+                  <input required type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Phone</label>
-                  <input type="text" value={editForm.mobile || ''} onChange={e => setEditForm({...editForm, mobile: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" />
+                  <input type="text" value={editForm.mobile || ''} onChange={e => setEditForm({ ...editForm, mobile: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Status</label>
-                  <select value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none bg-white">
+                  <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none bg-white">
                     <option value="active">Active</option>
                     <option value="verified">Verified</option>
                     <option value="inactive">Inactive</option>
@@ -557,17 +556,17 @@ export default function StudentDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Class / Grade</label>
-                  <input type="text" value={editForm.grade || editForm.classLevel || ''} onChange={e => setEditForm({...editForm, grade: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" />
+                  <input type="text" value={editForm.grade || editForm.classLevel || ''} onChange={e => setEditForm({ ...editForm, grade: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Parent Name</label>
-                  <input type="text" value={editForm.parentName || ''} onChange={e => setEditForm({...editForm, parentName: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" />
+                  <input type="text" value={editForm.parentName || ''} onChange={e => setEditForm({ ...editForm, parentName: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" />
                 </div>
               </div>
 
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Full Address</label>
-                <input type="text" value={editForm.address?.full || editForm.addressFull || ''} onChange={e => setEditForm({...editForm, addressFull: e.target.value})} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" placeholder="123 Street Name, City, State" />
+                <input type="text" value={editForm.address?.full || editForm.addressFull || ''} onChange={e => setEditForm({ ...editForm, addressFull: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 outline-none" placeholder="123 Street Name, City, State" />
               </div>
 
               <div className="pt-4 flex justify-end gap-2 border-t border-slate-100">

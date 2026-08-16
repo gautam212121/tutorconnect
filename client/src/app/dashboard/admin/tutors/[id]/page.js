@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { 
+import {
   ChevronRight, Edit, MessageSquare, MoreHorizontal, User,
   CheckCircle2, Star, Calendar, FileText, IndianRupee, MapPin, Award
 } from 'lucide-react';
@@ -30,7 +30,7 @@ export default function AdminTutorDetailView() {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       const data = await res.json();
-      
+
       if (res.ok && data.user) {
         setTutor(data.user);
         setBookings(data.bookings || []);
@@ -68,7 +68,7 @@ export default function AdminTutorDetailView() {
   const studentsAssigned = Array.from(new Set(bookings.map(b => b.student))).length || tutor.students || 0;
   const activeBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'ongoing').length || 0;
   const completedSessions = tutor.completedSessions || bookings.filter(b => b.status === 'completed').length || 0;
-  
+
   // Calculate earnings (mock calculations based on active bookings * rate if true data isn't available)
   const totalEarnings = tutor.wallet?.paidBalance || (completedSessions * (tutor.price || 500));
   const pendingPayout = tutor.wallet?.pendingBalance || 0;
@@ -80,7 +80,7 @@ export default function AdminTutorDetailView() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
-      
+
       {/* Breadcrumbs */}
       <div className="flex items-center text-xs font-semibold text-slate-500 mb-2">
         <Link href="/dashboard/admin" className="hover:text-slate-900">Dashboard</Link>
@@ -92,7 +92,7 @@ export default function AdminTutorDetailView() {
 
       {/* Profile Header Card */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 lg:p-6 shadow-sm flex flex-col xl:flex-row xl:items-start gap-6">
-        
+
         <div className="flex flex-col sm:flex-row gap-5 xl:w-[45%] border-b xl:border-b-0 xl:border-r border-slate-200 pb-6 xl:pb-0 xl:pr-6 shrink-0">
           <div className="flex flex-col items-center gap-3 shrink-0">
             <div className="h-28 w-28 rounded-full overflow-hidden border border-slate-200 bg-indigo-50 flex items-center justify-center relative">
@@ -115,14 +115,14 @@ export default function AdminTutorDetailView() {
               </div>
               <p className="text-xs text-slate-500">Tutor ID: {tutorIdDisplay}</p>
             </div>
-            
+
             <div className="space-y-1.5 text-xs font-medium text-slate-600">
               <div className="flex items-center gap-2">
-                <span className="w-4 flex justify-center text-emerald-600"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg></span>
+                <span className="w-4 flex justify-center text-emerald-600"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg></span>
                 {tutor.mobile || '+91 Not Provided'}
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-4 flex justify-center text-emerald-600"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></span>
+                <span className="w-4 flex justify-center text-emerald-600"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></span>
                 {tutor.email}
               </div>
               <div className="flex items-center gap-2">
@@ -199,7 +199,7 @@ export default function AdminTutorDetailView() {
 
       {/* Row 1: 4 Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
-        
+
         {/* Subjects & Charges */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col">
           <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><FileText size={16} className="text-[#059669]" /> Subjects & Charges</h3>
@@ -260,7 +260,7 @@ export default function AdminTutorDetailView() {
           <div className="flex-1">
             <div className="flex flex-wrap gap-1.5 mb-4">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
-                const isAvail = (tutor.availableDays || ['Mon','Tue','Wed','Thu','Fri']).includes(day);
+                const isAvail = (tutor.availableDays || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']).includes(day);
                 return (
                   <span key={day} className={`px-2 py-1 rounded text-[10px] font-bold ${isAvail ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
                     {day}
@@ -277,11 +277,11 @@ export default function AdminTutorDetailView() {
 
       {/* Row 2: Tables and Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        
+
         {/* Assigned Students */}
         <div id="students" className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col overflow-hidden">
           <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={16} className="text-[#059669]" /> Assigned Students</h3>
-          
+
           <div className="overflow-x-auto flex-1">
             <table className="w-full text-xs">
               <thead>
@@ -327,7 +327,7 @@ export default function AdminTutorDetailView() {
                   ))
                 ) : (
                   // Mock Rows if no bookings
-                  [1,2,3,4].map((mock, i) => (
+                  [1, 2, 3, 4].map((mock, i) => (
                     <tr key={mock} className="hover:bg-slate-50/50">
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2.5">
@@ -338,15 +338,15 @@ export default function AdminTutorDetailView() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-3 font-medium text-slate-600">Class {10 + (i%3)}</td>
+                      <td className="px-3 py-3 font-medium text-slate-600">Class {10 + (i % 3)}</td>
                       <td className="px-3 py-3 font-medium text-slate-600 text-[11px] w-28 truncate">{subjects.join(', ')}</td>
                       <td className="px-3 py-3">
                         <p className="font-medium text-slate-800 text-[11px]">Mon, Wed, Fri</p>
                         <p className="text-[10px] text-slate-400">05:00 PM - 07:00 PM</p>
                       </td>
                       <td className="px-3 py-3">
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${i%3===0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                          {i%3===0 ? 'Pending' : 'Ongoing'}
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${i % 3 === 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {i % 3 === 0 ? 'Pending' : 'Ongoing'}
                         </span>
                       </td>
                       <td className="px-3 py-3">
@@ -372,7 +372,7 @@ export default function AdminTutorDetailView() {
               <option>This Month</option>
             </select>
           </div>
-          
+
           <div className="mb-6">
             <p className="text-3xl font-black text-[#059669]">₹{totalEarnings.toLocaleString()}</p>
             <p className="text-xs text-slate-500 font-medium">Total Earnings</p>
@@ -380,11 +380,11 @@ export default function AdminTutorDetailView() {
 
           <div className="flex-1 flex items-center justify-center relative mb-4">
             {/* Simple CSS Donut Chart representation */}
-            <div className="w-32 h-32 rounded-full border-[12px] border-slate-100 relative">
-              <div className="absolute inset-[-12px] rounded-full border-[12px] border-amber-400" style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 100%, 50% 100%)' }}></div>
-              <div className="absolute inset-[-12px] rounded-full border-[12px] border-[#059669]" style={{ clipPath: 'polygon(50% 50%, 0 0, 0 100%, 50% 100%, 100% 0)' }}></div>
+            <div className="w-32 h-32 rounded-full border-[10px] border-slate-100 relative">
+              <div className="absolute inset-[-10px] rounded-full border-[10px] border-amber-400" style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 100%, 50% 100%)' }}></div>
+              <div className="absolute inset-[-10px] rounded-full border-[10px] border-[#059669]" style={{ clipPath: 'polygon(50% 50%, 0 0, 0 100%, 50% 100%, 100% 0)' }}></div>
             </div>
-            
+
             <div className="absolute right-0 flex flex-col gap-3 text-[11px] font-semibold text-slate-600">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-[#059669]"></span> Completed <span className="font-bold text-slate-800 ml-auto">₹{(totalEarnings * 0.75).toLocaleString()}</span>
@@ -397,25 +397,25 @@ export default function AdminTutorDetailView() {
               </div>
             </div>
           </div>
-          
+
           <button className="w-full py-2 text-[11px] font-bold text-[#059669] border border-[#059669]/20 rounded-lg hover:bg-emerald-50 transition">View Earnings Report</button>
         </div>
       </div>
 
       {/* Row 3 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        
+
         {/* Reviews */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-bold text-slate-800">Reviews & Ratings</h3>
-            <button className="text-[11px] font-bold text-[#059669] hover:underline flex items-center">View All <ChevronRight size={14}/></button>
+            <button className="text-[11px] font-bold text-[#059669] hover:underline flex items-center">View All <ChevronRight size={14} /></button>
           </div>
           <div className="flex items-end gap-3 mb-6 border-b border-slate-100 pb-4">
             <h1 className="text-4xl font-black text-slate-900">{tutor.rating || '4.8'}</h1>
             <div className="mb-1">
               <div className="flex gap-1 text-amber-400 mb-0.5">
-                {[1,2,3,4,5].map(s => <Star key={s} size={14} className={s <= (tutor.rating||5) ? 'fill-current' : ''} />)}
+                {[1, 2, 3, 4, 5].map(s => <Star key={s} size={14} className={s <= (tutor.rating || 5) ? 'fill-current' : ''} />)}
               </div>
               <p className="text-[10px] text-slate-400 font-semibold">({tutor.reviews || 32} Reviews)</p>
             </div>
@@ -427,7 +427,7 @@ export default function AdminTutorDetailView() {
               <div>
                 <div className="flex justify-between items-center">
                   <p className="text-[11px] font-bold text-slate-800">Abhi Kumar</p>
-                  <div className="flex text-amber-400"><Star size={10} className="fill-current"/><Star size={10} className="fill-current"/><Star size={10} className="fill-current"/><Star size={10} className="fill-current"/><Star size={10} className="fill-current"/></div>
+                  <div className="flex text-amber-400"><Star size={10} className="fill-current" /><Star size={10} className="fill-current" /><Star size={10} className="fill-current" /><Star size={10} className="fill-current" /><Star size={10} className="fill-current" /></div>
                 </div>
                 <p className="text-[10px] text-slate-600 mt-1">Great teaching and concept clarity!</p>
               </div>
@@ -437,7 +437,7 @@ export default function AdminTutorDetailView() {
               <div>
                 <div className="flex justify-between items-center">
                   <p className="text-[11px] font-bold text-slate-800">Sneha Patel</p>
-                  <div className="flex text-amber-400"><Star size={10} className="fill-current"/><Star size={10} className="fill-current"/><Star size={10} className="fill-current"/><Star size={10} className="fill-current"/><Star size={10} className="fill-current"/></div>
+                  <div className="flex text-amber-400"><Star size={10} className="fill-current" /><Star size={10} className="fill-current" /><Star size={10} className="fill-current" /><Star size={10} className="fill-current" /><Star size={10} className="fill-current" /></div>
                 </div>
                 <p className="text-[10px] text-slate-600 mt-1">Very helpful and explains very well.</p>
               </div>

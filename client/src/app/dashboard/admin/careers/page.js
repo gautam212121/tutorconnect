@@ -229,6 +229,18 @@ export default function AdminCareersPage() {
                     </div>
                   </section>
 
+                  {/* Personal Info */}
+                  <section>
+                    <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
+                      <Eye size={16} className="text-emerald-500" /> Personal Details
+                    </h3>
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-8">
+                      <div><p className="text-[10px] font-bold text-slate-400 uppercase">Gender</p><p className="text-sm font-semibold text-slate-800">{selectedApp.gender || '-'}</p></div>
+                      <div><p className="text-[10px] font-bold text-slate-400 uppercase">Date of Birth</p><p className="text-sm font-semibold text-slate-800">{selectedApp.dob || '-'}</p></div>
+                      <div className="col-span-2"><p className="text-[10px] font-bold text-slate-400 uppercase">Languages</p><p className="text-sm font-semibold text-slate-800">{(selectedApp.skills?.languages || []).join(', ') || '-'}</p></div>
+                    </div>
+                  </section>
+
                   {/* Education & Experience */}
                   <section>
                     <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
@@ -239,6 +251,7 @@ export default function AdminCareersPage() {
                       <div><p className="text-[10px] font-bold text-slate-400 uppercase">College</p><p className="text-sm font-semibold text-slate-800">{selectedApp.education?.college || '-'}</p></div>
                       <div><p className="text-[10px] font-bold text-slate-400 uppercase">Experience Level</p><p className="text-sm font-semibold text-slate-800">{selectedApp.experienceDetails?.type || '-'} ({selectedApp.experienceDetails?.totalExperience || '0'} yrs)</p></div>
                       <div><p className="text-[10px] font-bold text-slate-400 uppercase">Certifications</p><p className="text-sm font-semibold text-slate-800">{selectedApp.skills?.certifications || 'None'}</p></div>
+                      <div className="col-span-2"><p className="text-[10px] font-bold text-slate-400 uppercase">Computer Skills</p><p className="text-sm font-semibold text-slate-800">{selectedApp.skills?.computerSkills || 'None'}</p></div>
                     </div>
                   </section>
 
@@ -279,11 +292,11 @@ export default function AdminCareersPage() {
                       ) : <div className="text-xs text-slate-400 italic">No resume uploaded</div>}
 
                       {selectedApp.documents?.idUrl ? (
-                        <a href={selectedApp.documents.idUrl} download="id.jpg" className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 hover:border-emerald-300 group transition">
-                          <div className="flex items-center gap-2"><CheckCircle2 size={16} className="text-purple-500" /><span className="text-xs font-bold text-slate-700">Govt ID Card</span></div>
+                        <a href={selectedApp.documents.idUrl} download="aadhar.jpg" className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 hover:border-emerald-300 group transition">
+                          <div className="flex items-center gap-2"><CheckCircle2 size={16} className="text-purple-500" /><span className="text-xs font-bold text-slate-700">Aadhar Card</span></div>
                           <Download size={14} className="text-slate-400 group-hover:text-emerald-500" />
                         </a>
-                      ) : <div className="text-xs text-slate-400 italic">No Govt ID uploaded</div>}
+                      ) : <div className="text-xs text-slate-400 italic">No Aadhar Card uploaded</div>}
                     </div>
                   </div>
                 </div>

@@ -78,6 +78,9 @@ export default function CareersPage() {
       if (form.teaching.subjects.length === 0 || form.teaching.classes.length === 0) {
         return setErrorMsg('Select at least one Subject and Class.');
       }
+      if (!form.documents.idUrl) {
+        return setErrorMsg('Aadhar Card upload is mandatory.');
+      }
       if (!form.declaration.agreed || !form.declaration.backgroundCheck) {
         return setErrorMsg('You must agree to the declarations.');
       }
@@ -414,7 +417,7 @@ export default function CareersPage() {
                     {[
                       { id: 'resumeUrl', label: 'Resume (PDF/Doc)', icon: FileText },
                       { id: 'photoUrl', label: 'Profile Photo (JPG)', icon: Briefcase },
-                      { id: 'idUrl', label: 'Govt ID (Aadhaar/PAN)', icon: CheckCircle2 }
+                      { id: 'idUrl', label: 'Aadhar Card *', icon: CheckCircle2 }
                     ].map(doc => (
                       <div key={doc.id} className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer relative">
                         <input type="file" onChange={e => handleFileChange(e, doc.id)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept={doc.id === 'resumeUrl' ? '.pdf,.doc,.docx' : 'image/*'} />

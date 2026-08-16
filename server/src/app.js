@@ -101,7 +101,7 @@ const createApp = () => {
     try {
       await query('SELECT 1');
       isDbConnected = true;
-    } catch {}
+    } catch { }
     res.json({
       status: 'ok',
       service: 'tutorconnect-server',
@@ -115,14 +115,14 @@ const createApp = () => {
     try {
       const { email } = req.body;
       if (!email) return res.status(400).json({ message: 'Email is required' });
-      
+
       const { Newsletter } = await import('./models/Newsletter.js');
       const normalizedEmail = email.trim().toLowerCase();
       const existing = await Newsletter.findOne({ email: normalizedEmail });
       if (existing) {
         return res.status(400).json({ message: 'This email is already subscribed' });
       }
-      
+
       await Newsletter.create({ email: normalizedEmail });
       res.status(201).json({ message: 'Subscribed successfully' });
     } catch (err) {
@@ -659,10 +659,10 @@ const createApp = () => {
       if (user.role === 'student' || user.role === 'tutor') {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-        
+
         await query('DELETE FROM otps WHERE email = ?', [user.email]);
         await query('INSERT INTO otps (email, otp, expiresAt, used) VALUES (?, ?, ?, false)', [user.email, otp, expiresAt]);
-        
+
         if (process.env.SMTP_USER) {
           try {
             await getMailer().sendMail({
@@ -678,7 +678,7 @@ const createApp = () => {
                 </div>
               `
             });
-          } catch(err) { console.error('OTP Mail error:', err); }
+          } catch (err) { console.error('OTP Mail error:', err); }
         }
         return res.json({ requireOtp: true, email: user.email, message: 'OTP sent to your registered email for 2-step verification.' });
       }
@@ -740,7 +740,7 @@ const createApp = () => {
 
       const upcomingSessions = bookings.filter(b => b.status === 'Confirmed' && b.scheduledAt && new Date(b.scheduledAt) > now);
       const completedClasses = bookings.filter(b => b.status === 'Completed').length;
-      
+
       const totalSpent = payments.filter(p => p.status === 'Completed').reduce((sum, p) => sum + (Number(p.amount) || Number(p.totalAmount) || 0), 0);
       const pendingPayment = payments.filter(p => p.status === 'Pending').reduce((sum, p) => sum + (Number(p.amount) || Number(p.totalAmount) || 0), 0);
 
@@ -769,7 +769,7 @@ const createApp = () => {
           userMessageMap[otherId] = m;
         }
       });
-      
+
       const recentMessages = [];
       let unreadMessages = 0;
       for (const [otherId, lastMsg] of Object.entries(userMessageMap)) {
@@ -811,7 +811,7 @@ const createApp = () => {
         chartLabels.push(monthNames[d.getMonth()]);
         const count = bookings.filter(b => b.status === 'Completed' && new Date(b.createdAt).getMonth() === d.getMonth() && new Date(b.createdAt).getFullYear() === d.getFullYear()).length;
         // adding a base value just to make the chart look like the image (upward trend) if no data
-        chartData.push(count * 10 + (6 - i) * 15); 
+        chartData.push(count * 10 + (6 - i) * 15);
       }
 
       res.json({
@@ -959,7 +959,7 @@ const createApp = () => {
     try {
       const { page = 1, limit = 20 } = req.query;
       const notifications = await Notification.find({ recipient: req.user.id });
-      
+
       notifications.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       const pagedNotifications = notifications.slice((page - 1) * limit, (page - 1) * limit + parseInt(limit));
 

@@ -14,12 +14,18 @@ const formatTutor = (t) => ({
   reviews: t.reviews || 0,
   experience: t.experience || '1 year',
   location: t.location || 'Online',
-  subjects: t.subjects && t.subjects.length > 0
-    ? t.subjects.map((subject) => String(subject).toLowerCase())
-    : ['general'],
-  mode: t.mode && t.mode.length > 0 ? t.mode : ['Online'],
+  subjects: (() => {
+    let subs = t.subjects;
+    if (typeof subs === 'string') {
+      subs = subs.replace(/[\[\]"\\]/g, '').split(',').filter(Boolean);
+    }
+    return Array.isArray(subs) && subs.length > 0
+      ? subs.map((subject) => String(subject).toLowerCase())
+      : ['general'];
+  })(),
+  mode: Array.isArray(t.mode) && t.mode.length > 0 ? t.mode : (typeof t.mode === 'string' ? t.mode.replace(/[\[\]"\\]/g, '').split(',').filter(Boolean) : ['Online']),
   verified: t.verified,
-  image: t.avatar || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+  image: t.avatar || null,
 });
 
 export const getPlatformStats = async (req, res) => {
@@ -90,7 +96,11 @@ export const searchTutors = async (req, res) => {
 
     const normalizedSubject = subject ? subject.toLowerCase() : '';
     const formatted = filtered.map(t => {
-      const subs = (t.subjects && t.subjects.length > 0 ? t.subjects : ['General']).map(s => String(s).toLowerCase());
+      let tSubs = t.subjects;
+      if (typeof tSubs === 'string') {
+        tSubs = tSubs.replace(/[\[\]"\\]/g, '').split(',').filter(Boolean);
+      }
+      const subs = (Array.isArray(tSubs) && tSubs.length > 0 ? tSubs : ['General']).map(s => String(s).toLowerCase());
       if (normalizedSubject && !subs.includes(normalizedSubject)) {
         subs.push(normalizedSubject);
       }

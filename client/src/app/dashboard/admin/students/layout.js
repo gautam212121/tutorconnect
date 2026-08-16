@@ -71,10 +71,10 @@ export default function StudentsMasterLayout({ children }) {
 
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-white">
-      
+
       {/* ── LEFT PANE: MASTER LIST ── */}
-      <div className="w-[320px] lg:w-[380px] shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/50 h-full">
-        
+      <div className="w-[320px] lg:w-[300px] shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/50 h-full">
+
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
           <h1 className="text-xl font-bold text-[#1e293b]">All Students</h1>
@@ -106,25 +106,22 @@ export default function StudentsMasterLayout({ children }) {
         <div className="px-4 flex gap-6 border-b border-slate-200 bg-white shrink-0">
           <button
             onClick={() => { setSelectedTab('all'); setPage(1); }}
-            className={`pb-3 text-[13px] font-semibold border-b-2 transition-all ${
-              selectedTab === 'all' ? 'border-[#056852] text-[#056852]' : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+            className={`pb-3 text-[13px] font-semibold border-b-2 transition-all ${selectedTab === 'all' ? 'border-[#056852] text-[#056852]' : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
           >
             All ({students.length})
           </button>
           <button
             onClick={() => { setSelectedTab('active'); setPage(1); }}
-            className={`pb-3 text-[13px] font-semibold border-b-2 transition-all ${
-              selectedTab === 'active' ? 'border-[#056852] text-[#056852]' : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+            className={`pb-3 text-[13px] font-semibold border-b-2 transition-all ${selectedTab === 'active' ? 'border-[#056852] text-[#056852]' : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
           >
             Active ({activeCount})
           </button>
           <button
             onClick={() => { setSelectedTab('inactive'); setPage(1); }}
-            className={`pb-3 text-[13px] font-semibold border-b-2 transition-all ${
-              selectedTab === 'inactive' ? 'border-[#056852] text-[#056852]' : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+            className={`pb-3 text-[13px] font-semibold border-b-2 transition-all ${selectedTab === 'inactive' ? 'border-[#056852] text-[#056852]' : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
           >
             Inactive ({inactiveCount})
           </button>
@@ -143,11 +140,10 @@ export default function StudentsMasterLayout({ children }) {
                 <Link
                   href={`/dashboard/admin/students/${s.id}`}
                   key={s.id}
-                  className={`flex items-center p-3 rounded-2xl border transition-all ${
-                    isActiveRoute 
-                      ? 'bg-emerald-50/50 border-emerald-200 shadow-sm' 
+                  className={`flex items-center p-3 rounded-2xl border transition-all ${isActiveRoute
+                      ? 'bg-emerald-50/50 border-emerald-200 shadow-sm'
                       : 'bg-white border-slate-100 hover:border-emerald-200 hover:shadow-sm'
-                  }`}
+                    }`}
                 >
                   <div className="relative">
                     <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700 overflow-hidden">
@@ -158,14 +154,14 @@ export default function StudentsMasterLayout({ children }) {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="ml-3 flex-1 min-w-0">
                     <h4 className={`text-[13px] font-bold truncate ${isActiveRoute ? 'text-emerald-800' : 'text-slate-800'}`}>
                       {s.name}
                     </h4>
                     <p className="text-[11px] text-slate-500 truncate">Class {s.grade} - ID: {String(s.id).slice(-6).toUpperCase()}</p>
                   </div>
-                  
+
                   <div className="shrink-0 flex items-center gap-1.5 ml-2">
                     <span className={`h-1.5 w-1.5 rounded-full ${isStudentActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                     <span className={`text-[10px] font-bold ${isStudentActive ? 'text-emerald-600' : 'text-slate-400'}`}>
@@ -183,7 +179,7 @@ export default function StudentsMasterLayout({ children }) {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="p-3 border-t border-slate-200 bg-white flex items-center justify-center gap-1 shrink-0">
-            <button 
+            <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
               className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50"
@@ -194,14 +190,13 @@ export default function StudentsMasterLayout({ children }) {
               <button
                 key={i}
                 onClick={() => setPage(i + 1)}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${
-                  page === i + 1 ? 'bg-[#056852] text-white' : 'text-slate-600 hover:bg-slate-100'
-                }`}
+                className={`h-8 w-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${page === i + 1 ? 'bg-[#056852] text-white' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
               >
                 {i + 1}
               </button>
             ))}
-            <button 
+            <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
               className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50"
@@ -216,7 +211,7 @@ export default function StudentsMasterLayout({ children }) {
       <div className="flex-1 bg-slate-50 overflow-y-auto relative h-full">
         {children}
       </div>
-      
+
     </div>
   );
 }

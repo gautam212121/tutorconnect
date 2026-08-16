@@ -38,7 +38,13 @@ export const adminApi = {
   
   getUsers: (role) => api.get(`admin-new/users${role ? `?role=${role}` : ''}`).then(res => res.data),
   createUser: (data) => api.post('admin-new/users', data).then(res => res.data),
+  createUserMultipart: (formData) => api.post('admin-new/users', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(res => res.data),
   updateUser: (id, data) => api.put(`admin-new/users/${id}`, data).then(res => res.data),
+  updateUserMultipart: (id, formData) => api.put(`admin-new/users/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(res => res.data),
   deleteUser: (id) => api.delete(`admin-new/users/${id}`).then(res => res.data),
   
   getCourses: () => api.get('admin-new/courses').then(res => res.data),
