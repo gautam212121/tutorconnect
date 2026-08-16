@@ -33,9 +33,28 @@ router.get('/conversation/:userId1/:userId2', requireAnyRole(['student', 'tutor'
         { from: userId2, to: userId1 },
       ]
     });
+
+    const isTutor = req.user.role === 'tutor';
+    let isPaid = true;
+    if (isTutor) {
+      const studentId = String(req.user.id) === String(userId1) ? userId2 : userId1;
+      const Booking = (await import('../models/Booking.js')).default;
+      const bookings = await Booking.find({ student: studentId, tutor: req.user.id });
+      const latestBooking = bookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+      isPaid = latestBooking?.paymentStatus === 'Paid';
+    }
+
     for (const m of messages) {
-      m.from = await User.findById(m.from);
-      m.to = await User.findById(m.to);
+      let fromUser = await User.findById(m.from);
+      let toUser = await User.findById(m.to);
+      if (fromUser && isTutor && fromUser.role === 'student' && !isPaid) {
+        fromUser = { ...fromUser, id: fromUser.id, name: 'Name Hidden (Payment Pending)', email: 'Hidden', mobile: 'Hidden', avatar: null };
+      }
+      if (toUser && isTutor && toUser.role === 'student' && !isPaid) {
+        toUser = { ...toUser, id: toUser.id, name: 'Name Hidden (Payment Pending)', email: 'Hidden', mobile: 'Hidden', avatar: null };
+      }
+      m.from = fromUser;
+      m.to = toUser;
     }
     res.json(messages);
   } catch (err) {
@@ -62,9 +81,36 @@ router.get('/inbox/:userId', requireAnyRole(['student', 'tutor', 'admin']), asyn
       const partnerId = fromId === String(userId) ? toId : fromId;
 
       if (!conversations[partnerId]) {
-        const partner = await User.findById(partnerId);
-        msg.from = await User.findById(msg.from);
-        msg.to = await User.findById(msg.to);
+        let partner = await User.findById(partnerId);
+        if (partner && req.user.role === 'tutor' && partner.role === 'student') {
+          const Booking = (await import('../models/Booking.js')).default;
+          const bookings = await Booking.find({ student: partner.id, tutor: req.user.id });
+          const latestBooking = bookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+          const isPaid = latestBooking?.paymentStatus === 'Paid';
+          if (!isPaid) {
+            partner = {
+              ...partner,
+              id: partner.id,
+              name: 'Name Hidden (Payment Pending)',
+              email: 'Hidden',
+              mobile: 'Hidden (Payment Pending)',
+              avatar: null
+            };
+          }
+        }
+
+        let fromUser = await User.findById(msg.from);
+        let toUser = await User.findById(msg.to);
+        if (fromUser && req.user.role === 'tutor' && fromUser.role === 'student' && partner?.name?.includes('Hidden')) {
+          fromUser = { ...fromUser, id: fromUser.id, name: 'Name Hidden (Payment Pending)', email: 'Hidden', mobile: 'Hidden', avatar: null };
+        }
+        if (toUser && req.user.role === 'tutor' && toUser.role === 'student' && partner?.name?.includes('Hidden')) {
+          toUser = { ...toUser, id: toUser.id, name: 'Name Hidden (Payment Pending)', email: 'Hidden', mobile: 'Hidden', avatar: null };
+        }
+
+        msg.from = fromUser;
+        msg.to = toUser;
+
         conversations[partnerId] = {
           partner,
           lastMessage: msg,

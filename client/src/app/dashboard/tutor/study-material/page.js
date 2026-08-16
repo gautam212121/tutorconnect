@@ -6,8 +6,9 @@ import { FileText, Video, HelpCircle, Plus, BookOpen, Trash2 } from 'lucide-reac
 
 export default function TutorStudyMaterialPage() {
   const { data: materials = [], loading, reload } = usePoll('/api/v1/tutor/study-materials', 15000, []);
+  const { data: students = [] } = usePoll('/api/v1/tutor/students', 15000, []);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ title: '', fileUrl: '', courseId: '', type: 'PDF' });
+  const [formData, setFormData] = useState({ title: '', fileUrl: '', courseId: '', type: 'PDF', studentId: 'all' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -19,7 +20,7 @@ export default function TutorStudyMaterialPage() {
         body: JSON.stringify(formData)
       });
       setIsModalOpen(false);
-      setFormData({ title: '', fileUrl: '', courseId: '', type: 'PDF' });
+      setFormData({ title: '', fileUrl: '', courseId: '', type: 'PDF', studentId: 'all' });
       reload();
     } catch (err) {
       alert(err.message);
@@ -123,6 +124,15 @@ export default function TutorStudyMaterialPage() {
                     <option value="Notes">Notes (Text)</option>
                     <option value="Video">Video Link</option>
                     <option value="Other">Other</option>
+                 </select>
+               </div>
+               <div>
+                 <label className="block text-xs font-bold text-slate-700 mb-1">Share with Student</label>
+                 <select required value={formData.studentId} onChange={e => setFormData({...formData, studentId: e.target.value})} className="w-full border-slate-200 rounded-xl text-sm">
+                   <option value="all">All Assigned Students</option>
+                   {students.map(s => (
+                     <option key={s.id} value={s.id}>{s.name} (Class {s.grade || 'N/A'})</option>
+                   ))}
                  </select>
                </div>
                <div>

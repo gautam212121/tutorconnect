@@ -31,8 +31,17 @@ router.post('/', requireAnyRole(['student', 'admin']), validateBookingPayload, a
       studentId = req.user.id;
     }
 
-    if (!studentId || !tutorId || !subject || !grade || !examType) {
-      return res.status(400).json({ message: 'studentId, tutorId, subject, grade and examType are required' });
+    if (!studentId || !subject || !grade || !examType) {
+      return res.status(400).json({ message: 'studentId, subject, grade and examType are required' });
+    }
+
+    if (mode && mode !== 'Home' && mode !== 'Offline') {
+       return res.status(400).json({ message: 'Only Offline/Home Tuition mode is supported.' });
+    }
+
+    // Require address for home tuition
+    if (!address || (!address.full && !address.area)) {
+       return res.status(400).json({ message: 'Address is required for Home Tuition.' });
     }
 
     const rate = typeof adminRate === 'number' && adminRate >= 0 && adminRate <= 1
@@ -44,11 +53,11 @@ router.post('/', requireAnyRole(['student', 'admin']), validateBookingPayload, a
 
     const bookingData = {
       student: studentId,
-      tutor: tutorId,
+      tutor: tutorId || null,
       subject,
       grade,
       examType,
-      mode: mode || 'Home',
+      mode: 'Home',
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       duration: duration || 60,
       message,
@@ -58,7 +67,7 @@ router.post('/', requireAnyRole(['student', 'admin']), validateBookingPayload, a
       tutorRate,
       tutorEarning,
       adminCommission,
-      status: 'Pending',
+      status: 'Pending Admin Review',
       paymentStatus: 'Pending',
     };
 
@@ -85,6 +94,20 @@ router.post('/', requireAnyRole(['student', 'admin']), validateBookingPayload, a
     }
 
     res.status(201).json(booking);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── Get bookings for logged-in student ─────────────────────────────────────────
+router.get('/student/me', requireAnyRole(['student', 'admin']), async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const bookings = await Booking.find({ student: studentId });
+    for (const b of bookings) {
+      if (b.tutor) b.tutor = await User.findById(b.tutor);
+    }
+    res.json(bookings);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -137,10 +160,158 @@ router.patch('/:id/status', requireAnyRole(['tutor', 'admin']), async (req, res)
 
     const updated = await Booking.findByIdAndUpdate(req.params.id, { status });
     updated.student = await User.findById(updated.student);
-    updated.tutor = await User.findById(updated.tutor);
+    if (updated.tutor) updated.tutor = await User.findById(updated.tutor);
 
     getIo(req)?.emit('bookingUpdated', updated);
     res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── Admin Assign Tutor ────────────────────────────────────────────────────────
+router.patch('/:id/assign-tutor', requireAnyRole(['admin']), async (req, res) => {
+  try {
+    const { tutorId, scheduledAt } = req.body;
+    if (!tutorId) return res.status(400).json({ message: 'tutorId is required' });
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    const tutorUser = await User.findById(tutorId);
+    if (!tutorUser) return res.status(404).json({ message: 'Tutor not found' });
+
+    // Store tutor rates, subjects, name in snapshot
+    const tutorSnapshot = {
+      id: tutorUser.id,
+      name: tutorUser.name,
+      email: tutorUser.email,
+      mobile: tutorUser.mobile,
+      price: Number(tutorUser.price || 250),
+      subjects: tutorUser.subjects || []
+    };
+
+    const updates = { 
+      tutor: tutorId, 
+      status: 'Tutor Assigned',
+      tutorSnapshot,
+      amount: 0 // Reset amount to 0 before admin approval
+    };
+    if (scheduledAt) updates.scheduledAt = new Date(scheduledAt);
+
+    const updated = await Booking.findByIdAndUpdate(req.params.id, updates);
+    updated.student = await User.findById(updated.student);
+    updated.tutor = tutorUser;
+
+    getIo(req)?.emit('bookingUpdated', updated);
+    getIo(req)?.emit('bookingAssigned', updated);
+
+    // Notify student and tutor
+    await Message.create({
+      from: req.user.id,
+      to: updated.student.id || updated.student,
+      booking: updated.id,
+      type: 'notification',
+      content: `A tutor (${tutorUser.name}) has been assigned to your booking for ${updated.subject}.`,
+    });
+
+    await Message.create({
+      from: req.user.id,
+      to: tutorUser.id,
+      booking: updated.id,
+      type: 'notification',
+      content: `You have been assigned to a new booking for ${updated.subject}.`,
+    });
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── Admin Reject Booking ──────────────────────────────────────────────────────
+router.patch('/:id/reject', requireAnyRole(['admin']), async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    const updated = await Booking.findByIdAndUpdate(req.params.id, {
+      status: 'Rejected',
+      rejectionReason: reason || 'No reason provided',
+    });
+    updated.student = await User.findById(updated.student);
+    if (updated.tutor) updated.tutor = await User.findById(updated.tutor);
+
+    // Notify student
+    if (updated.student) {
+      await Message.create({
+        from: req.user.id,
+        to: updated.student.id || updated.student,
+        booking: updated.id,
+        type: 'notification',
+        content: `Your booking for ${updated.subject} has been rejected. Reason: ${reason || 'No reason provided'}`,
+      });
+    }
+
+    getIo(req)?.emit('bookingUpdated', updated);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── QR Payment Confirmation (Admin confirms student's QR payment) ─────────────
+router.post('/:id/payment/qr-confirm', requireAnyRole(['admin']), async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    const updated = await Booking.findByIdAndUpdate(req.params.id, {
+      status: 'Payment Completed',
+      paymentStatus: 'Paid',
+      paymentMethod: 'QR/UPI',
+    });
+
+    // Create payment record
+    await Payment.create({
+      booking: updated.id,
+      student: updated.student,
+      tutor: updated.tutor,
+      totalAmount: updated.amount,
+      tutorShare: updated.tutorEarning || 0,
+      adminShare: updated.adminCommission || 0,
+      adminRate: updated.adminRate || 0.2,
+      tutorRate: updated.tutorRate || 0.8,
+      status: 'Completed',
+      method: 'QR/UPI',
+    });
+
+    getIo(req)?.emit('paymentCompleted', { bookingId: updated.id });
+    getIo(req)?.emit('bookingUpdated', updated);
+    res.json({ message: 'Payment confirmed', booking: updated });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── Student claims QR payment ─────────────────────────────────────────────────
+router.post('/:id/payment/qr-claim', requireAnyRole(['student', 'admin']), async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    if (req.user.role === 'student' && String(booking.student) !== String(req.user.id)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const updated = await Booking.findByIdAndUpdate(req.params.id, {
+      paymentStatus: 'Claimed',
+      paymentMethod: 'QR/UPI',
+    });
+
+    getIo(req)?.emit('bookingUpdated', updated);
+    res.json({ message: 'Payment claim submitted. Admin will verify.', booking: updated });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -231,6 +402,7 @@ router.post('/:id/payment/verify', requireAnyRole(['student', 'admin']), async (
     }
 
     const updated = await Booking.findByIdAndUpdate(req.params.id, {
+      status: 'Payment Completed',
       paymentStatus: 'Paid',
       razorpayOrderId,
       razorpayPaymentId,

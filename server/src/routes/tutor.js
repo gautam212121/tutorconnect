@@ -46,8 +46,22 @@ router.get('/assignments', async (req, res) => {
 
 router.post('/assignments', async (req, res) => {
   try {
-    const assignment = await Assignment.create({ ...req.body, tutorId: req.user.id });
-    res.status(201).json(assignment);
+    const tutorId = req.user.id;
+    const { studentId, ...rest } = req.body;
+    if (studentId === 'all') {
+      const bookings = await Booking.find({ tutor: tutorId });
+      const studentIds = [...new Set(bookings.map(b => String(b.student)).filter(sid => sid && sid !== 'undefined'))];
+      
+      const created = [];
+      for (const sid of studentIds) {
+        const a = await Assignment.create({ ...rest, studentId: Number(sid), tutorId });
+        created.push(a);
+      }
+      return res.status(201).json(created[0] || { message: 'No students to assign' });
+    } else {
+      const assignment = await Assignment.create({ ...req.body, tutorId });
+      return res.status(201).json(assignment);
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -83,8 +97,22 @@ router.get('/study-materials', async (req, res) => {
 
 router.post('/study-materials', async (req, res) => {
   try {
-    const material = await StudyMaterial.create({ ...req.body, tutorId: req.user.id });
-    res.status(201).json(material);
+    const tutorId = req.user.id;
+    const { studentId, ...rest } = req.body;
+    if (studentId === 'all') {
+      const bookings = await Booking.find({ tutor: tutorId });
+      const studentIds = [...new Set(bookings.map(b => String(b.student)).filter(sid => sid && sid !== 'undefined'))];
+      
+      const created = [];
+      for (const sid of studentIds) {
+        const m = await StudyMaterial.create({ ...rest, studentId: Number(sid), tutorId });
+        created.push(m);
+      }
+      return res.status(201).json(created[0] || { message: 'No students to share with' });
+    } else {
+      const material = await StudyMaterial.create({ ...req.body, tutorId });
+      return res.status(201).json(material);
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -140,16 +168,26 @@ router.get('/students', async (req, res) => {
       if (s) {
         // Find their bookings for stats
         const sBookings = bookings.filter(b => String(b.student) === String(sid));
+        // Aggregate subjects from bookings
+        const subjects = [...new Set(sBookings.map(b => b.subject).filter(Boolean))].join(', ');
+        // Get address from user profile or latest booking
+        const latestBooking = sBookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+        const address = s.address?.full || s.address?.area || latestBooking?.address?.full || latestBooking?.address?.area || '';
+        
+        const isPaid = latestBooking?.paymentStatus === 'Paid';
+
         students.push({
           id: s.id || s._id,
-          name: s.name,
-          email: s.email,
-          mobile: s.mobile,
-          grade: s.grade,
-          avatar: s.avatar,
+          name: isPaid ? s.name : 'Name Hidden (Payment Pending)',
+          email: isPaid ? s.email : 'Hidden',
+          mobile: isPaid ? s.mobile : 'Hidden (Payment Pending)',
+          grade: s.grade || latestBooking?.grade || '',
+          avatar: isPaid ? s.avatar : null,
           totalBookings: sBookings.length,
           lastBookingDate: sBookings.length ? new Date(Math.max(...sBookings.map(b => new Date(b.createdAt)))) : null,
-          status: 'Active'
+          status: 'Active',
+          subjects: subjects || 'General',
+          address: isPaid ? address : 'Hidden',
         });
       }
     }
@@ -164,9 +202,16 @@ router.get('/students', async (req, res) => {
 router.get('/reviews', async (req, res) => {
   try {
     const reviews = await Review.find();
-    // In db fallback we might just get all or filter manually
     const tutorReviews = reviews.filter(r => String(r.tutor) === String(req.user.id));
-    res.json(tutorReviews);
+    const populated = [];
+    for (const r of tutorReviews) {
+      const student = await User.findById(r.student);
+      populated.push({
+        ...r,
+        studentName: student ? student.name : 'Anonymous Student'
+      });
+    }
+    res.json(populated);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -175,9 +220,24 @@ router.get('/reviews', async (req, res) => {
 // --- PROFILE & SETTINGS ---
 router.put('/profile', async (req, res) => {
   try {
-    const data = req.body;
-    // Simple update in memory
-    const user = await User.findByIdAndUpdate(req.user.id, data);
+    const allowedFields = [
+      'avatar', 'bio', 'headline', 'dob', 'gender', 'grade', 'board', 'school',
+      'medium', 'address', 'subjects', 'classesTaught', 'languages', 'experience',
+      'price', 'priceMax', 'feeType', 'availableDays', 'availableTimeSlots',
+      'mode', 'schedule', 'learningGoal', 'specialRequirements', 'budget',
+      'preferredTutorGender', 'qualification', 'demoVideoUrl', 'location',
+      'education', 'availability', 'bankDetails'
+    ];
+
+    const updates = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true });
+    if (user && user.password) delete user.password;
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -191,6 +251,90 @@ router.get('/notifications', async (req, res) => {
     const notifications = await Notification.find();
     const myNotifications = notifications.filter(n => String(n.user) === String(req.user.id));
     res.json(myNotifications);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- DASHBOARD ---
+router.get('/dashboard', async (req, res) => {
+  try {
+    const tutorUser = await User.findById(req.user.id);
+    if (!tutorUser) return res.status(404).json({ message: 'Tutor not found' });
+
+    const bookings = await Booking.find({ tutor: req.user.id });
+    const upcomingSessions = bookings.filter(b => ['Tutor Assigned', 'Admin Approved', 'Payment Completed'].includes(b.status));
+    const completedSessions = bookings.filter(b => b.status === 'Payment Completed').length;
+    
+    // Get unique assigned students
+    const assignedStudents = [];
+    const studentIds = [...new Set(bookings.map(b => String(b.student)))];
+    for (const sid of studentIds) {
+      if (!sid || sid === 'undefined') continue;
+      const s = await User.findById(sid);
+      if (s) {
+        const sBookings = bookings.filter(b => String(b.student) === String(sid));
+        const subjects = [...new Set(sBookings.map(b => b.subject).filter(Boolean))];
+        const latestBooking = sBookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+        
+        const isPaid = latestBooking?.paymentStatus === 'Paid';
+        assignedStudents.push({
+          studentName: isPaid ? s.name : 'Name Hidden (Payment Pending)',
+          selectedSubjects: subjects,
+          status: latestBooking?.status || 'Active',
+          classLevel: s.grade || latestBooking?.grade || '',
+          location: s.address?.area || latestBooking?.address?.area || 'Home',
+          schedule: latestBooking?.scheduledAt,
+          contact: isPaid ? s.mobile : 'Hidden (Payment Pending)',
+          amount: latestBooking?.amount || 0,
+          paymentStatus: isPaid ? 'Paid' : (latestBooking?.paymentStatus || 'Pending')
+        });
+      }
+    }
+
+    const totalEarnings = bookings.filter(b => b.status === 'Payment Completed').reduce((sum, b) => sum + (b.tutorEarning || 0), 0);
+    const freeLeadsUsed = Number(tutorUser.freeLeadsUsed || 0);
+    const freeLeadsLimit = 5;
+    const freeLeadsRemaining = Math.max(0, freeLeadsLimit - freeLeadsUsed);
+
+    const hourlyRate = Number(tutorUser.price || 250);
+    const monthlyRate = hourlyRate * 8;
+
+    const dashboardData = {
+      stats: {
+        activeLeads: 0,
+        respondedLeads: 0,
+        upcomingSessions: upcomingSessions.length,
+        totalEarnings: totalEarnings,
+        walletBalance: totalEarnings,
+        freeLeads: { used: freeLeadsUsed, limit: freeLeadsLimit, remaining: freeLeadsRemaining }
+      },
+      commission: {
+        rate: Number(tutorUser.currentCommissionRate || 0.15),
+        tier: completedSessions > 100 ? '100+ Sessions' : completedSessions > 20 ? '21 – 100 Sessions' : '0 – 20 Sessions'
+      },
+      leads: [],
+      upcomingSessions: upcomingSessions.slice(0, 3).map(session => {
+        const isPaid = session.paymentStatus === 'Paid';
+        return {
+          ...session,
+          student: {
+            name: isPaid ? (session.studentSnapshot?.name || 'Student') : 'Hidden (Payment Pending)'
+          }
+        };
+      }),
+      assignedStudents: assignedStudents,
+      monthlyEarnings: [
+        { month: 'Jan', earnings: 0 },
+        { month: 'Feb', earnings: totalEarnings }
+      ],
+      recentPayouts: [],
+      completedSessions: completedSessions,
+      hourlyRate: hourlyRate,
+      monthlyRate: monthlyRate
+    };
+
+    res.json(dashboardData);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

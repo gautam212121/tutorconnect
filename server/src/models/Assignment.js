@@ -7,8 +7,11 @@ export function formatAssignment(row) {
     title: row.title,
     description: row.description,
     courseId: row.courseId,
+    studentId: row.studentId,
     tutorId: row.tutorId,
     dueDate: row.dueDate,
+    startTime: row.startTime,
+    endTime: row.endTime,
     status: row.status || 'active',
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -21,6 +24,7 @@ export class Assignment {
     const params = [];
     if (filter.tutorId) { sql += ' AND tutorId = ?'; params.push(filter.tutorId); }
     if (filter.courseId) { sql += ' AND courseId = ?'; params.push(filter.courseId); }
+    if (filter.studentId) { sql += ' AND studentId = ?'; params.push(filter.studentId); }
     sql += ' ORDER BY id DESC';
     const rows = await query(sql, params);
     return rows.map(formatAssignment);
@@ -33,9 +37,19 @@ export class Assignment {
   }
 
   static async create(data) {
-    const { title, description, courseId, tutorId, dueDate, status = 'active' } = data;
-    const sql = `INSERT INTO assignments (title, description, courseId, tutorId, dueDate, status) VALUES (?, ?, ?, ?, ?, ?)`;
-    const params = [title, description, courseId, tutorId, dueDate, status];
+    const { title, description, courseId, studentId, tutorId, dueDate, startTime, endTime, status = 'active' } = data;
+    const sql = `INSERT INTO assignments (title, description, courseId, studentId, tutorId, dueDate, startTime, endTime, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const params = [
+      title || null,
+      description || null,
+      courseId || null,
+      studentId || null,
+      tutorId || null,
+      dueDate || null,
+      startTime || null,
+      endTime || null,
+      status
+    ];
     const res = await execute(sql, params);
     return this.findById(res.insertId);
   }
@@ -45,7 +59,7 @@ export class Assignment {
     const params = [];
     for (const [key, value] of Object.entries(data)) {
       fields.push(`${key} = ?`);
-      params.push(value);
+      params.push(value === undefined ? null : value);
     }
     if (fields.length === 0) return this.findById(id);
     params.push(id);

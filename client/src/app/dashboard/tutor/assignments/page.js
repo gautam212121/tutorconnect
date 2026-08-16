@@ -6,8 +6,9 @@ import { ClipboardList, Plus, Trash2, Calendar } from 'lucide-react';
 
 export default function TutorAssignmentsPage() {
   const { data: assignments = [], loading, reload } = usePoll('/api/v1/tutor/assignments', 15000, []);
+  const { data: students = [] } = usePoll('/api/v1/tutor/students', 15000, []);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ title: '', description: '', dueDate: '' });
+  const [formData, setFormData] = useState({ title: '', description: '', dueDate: '', startTime: '', endTime: '', studentId: 'all' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -19,7 +20,7 @@ export default function TutorAssignmentsPage() {
         body: JSON.stringify(formData)
       });
       setIsModalOpen(false);
-      setFormData({ title: '', description: '', dueDate: '' });
+      setFormData({ title: '', description: '', dueDate: '', startTime: '', endTime: '', studentId: 'all' });
       reload();
     } catch (err) {
       alert(err.message);
@@ -86,10 +87,15 @@ export default function TutorAssignmentsPage() {
                  <div className="flex items-center justify-between gap-3">
                    <div>
                      <p className="font-semibold text-slate-900">{a.title}</p>
-                     <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-                        <Calendar size={12}/> Due: {a.dueDate ? new Date(a.dueDate).toLocaleDateString() : 'No Due Date'}
-                     </p>
-                     {a.description && <p className="text-xs text-slate-600 mt-2">{a.description}</p>}
+                      <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+                         <Calendar size={12}/> Due: {a.dueDate ? new Date(a.dueDate).toLocaleDateString() : 'No Due Date'}
+                         {a.startTime && a.endTime && (
+                           <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-semibold ml-2">
+                             Timing: {a.startTime} - {a.endTime}
+                           </span>
+                         )}
+                      </p>
+                      {a.description && <p className="text-xs text-slate-600 mt-2">{a.description}</p>}
                    </div>
                    <div className="flex items-center gap-3">
                      <span className={`rounded-full px-3 py-1 text-[11px] font-semibold border ${a.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
@@ -120,9 +126,28 @@ export default function TutorAssignmentsPage() {
                  <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full border-slate-200 rounded-xl text-sm" rows="3" placeholder="Instructions..."></textarea>
                </div>
                <div>
-                 <label className="block text-xs font-bold text-slate-700 mb-1">Due Date</label>
-                 <input type="date" required value={formData.dueDate} onChange={e => setFormData({...formData, dueDate: e.target.value})} className="w-full border-slate-200 rounded-xl text-sm" />
+                 <label className="block text-xs font-bold text-slate-700 mb-1">Assign to Student</label>
+                 <select required value={formData.studentId} onChange={e => setFormData({...formData, studentId: e.target.value})} className="w-full border-slate-200 rounded-xl text-sm">
+                   <option value="all">All Assigned Students</option>
+                   {students.map(s => (
+                     <option key={s.id} value={s.id}>{s.name} (Class {s.grade || 'N/A'})</option>
+                   ))}
+                 </select>
                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Due Date</label>
+                  <input type="date" required value={formData.dueDate} onChange={e => setFormData({...formData, dueDate: e.target.value})} className="w-full border-slate-200 rounded-xl text-sm" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Start Time</label>
+                    <input type="time" required value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} className="w-full border-slate-200 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">End Time</label>
+                    <input type="time" required value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} className="w-full border-slate-200 rounded-xl text-sm" />
+                  </div>
+                </div>
                <div className="flex justify-end gap-3 pt-4">
                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100">Cancel</button>
                  <button type="submit" disabled={isSubmitting} className="px-4 py-2 rounded-xl text-sm font-bold bg-[#056852] text-white hover:bg-[#045242] disabled:opacity-50">

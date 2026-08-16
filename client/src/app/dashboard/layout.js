@@ -23,11 +23,11 @@ function DashboardLayoutContent({ children }) {
   const isAdminRoute = pathname?.startsWith('/dashboard/admin');
 
   // Poll notifications for badge count
-  const { data: notifs } = usePoll(!isAdminRoute ? '/api/v1/notifications' : null, 30000, []);
+  const { data: notifs } = usePoll(!isAdminRoute ? '/api/v1/notifications' : null, 60000, []);
   const unreadCount = Array.isArray(notifs) ? notifs.filter((n) => !n.read).length : 0;
 
   // Poll messages for badge count
-  const { data: conversations } = usePoll(user && !isAdminRoute ? `/api/v1/messages/inbox/${user.id}` : null, 30000, []);
+  const { data: conversations } = usePoll(user && !isAdminRoute ? `/api/v1/messages/inbox/${user.id}` : null, 60000, []);
   const unreadMessagesCount = Array.isArray(conversations) ? conversations.reduce((acc, conv) => acc + (conv.unread || 0), 0) : 0;
 
   useEffect(() => {
@@ -89,7 +89,6 @@ function DashboardLayoutContent({ children }) {
       { key: 'students', name: 'Students', href: '/dashboard/tutor/students', icon: GraduationCap },
       { key: 'courses', name: 'Courses', href: '/dashboard/tutor/courses', icon: BookOpen },
       { key: 'schedule', name: 'Schedule', href: '/dashboard/tutor?section=schedule', icon: Calendar },
-      { key: 'live', name: 'Live Classes', href: '/dashboard/tutor/live-classes', icon: Video },
       { key: 'material', name: 'Study Material', href: '/dashboard/tutor/study-material', icon: FileText },
       { key: 'assignments', name: 'Assignments', href: '/dashboard/tutor/assignments', icon: Folder },
       { key: 'messages', name: 'Messages', href: '/dashboard/tutor/messages', icon: MessageSquare, badge: unreadMessagesCount },

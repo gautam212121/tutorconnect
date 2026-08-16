@@ -131,13 +131,13 @@ export default function AdminDashboardPage() {
   const [approvalStatus, setApprovalStatus] = useState({});
   const [lastUpdate, setLastUpdate] = useState(null);
 
-  // Real-time polling
-  const { data: stats, loading: statsLoading, reload: reloadStats } = usePoll('/api/v1/admin/stats', 30000, null);
-  const { data: analytics } = usePoll('/api/v1/admin/analytics', 60000, null);
-  const { data: bookingsData, reload: reloadBookings } = usePoll('/api/v1/admin/bookings', 20000, []);
-  const { data: usersData } = usePoll('/api/v1/admin/users', 30000, []);
-  const { data: activityData } = usePoll('/api/v1/admin/recent-activity', 20000, []);
-  const { data: notifs } = usePoll('/api/v1/notifications', 25000, []);
+  // Real-time polling — longer intervals to reduce server load
+  const { data: stats, loading: statsLoading, reload: reloadStats } = usePoll('/api/v1/admin/stats', 60000, null);
+  const { data: analytics } = usePoll('/api/v1/admin/analytics', 120000, null);
+  const { data: bookingsData, reload: reloadBookings } = usePoll('/api/v1/admin/bookings', 45000, []);
+  const { data: usersData } = usePoll('/api/v1/admin/users', 60000, []);
+  const { data: activityData } = usePoll('/api/v1/admin/recent-activity', 45000, []);
+  const { data: notifs } = usePoll('/api/v1/notifications', 60000, []);
 
   const loading = statsLoading;
   const bookings = Array.isArray(bookingsData) ? bookingsData : [];

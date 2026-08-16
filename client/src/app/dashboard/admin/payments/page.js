@@ -226,32 +226,52 @@ export default function PaymentsAdminPage() {
               <thead>
                 <tr className="bg-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   <th className="px-4 py-3 text-left">ID</th>
-                  <th className="px-4 py-3 text-left">Description</th>
+                  <th className="px-4 py-3 text-left">Student</th>
+                  <th className="px-4 py-3 text-left">Tutor</th>
+                  <th className="px-4 py-3 text-left">Subjects</th>
                   <th className="px-4 py-3 text-left">Amount</th>
-                  <th className="px-4 py-3 text-left">Type</th>
+                  <th className="px-4 py-3 text-center">Payment Status</th>
+                  <th className="px-4 py-3 text-center">Approval Status</th>
                   <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-left">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {TRANSACTIONS.filter(t => activeTab === 'revenue' ? true : t.type === activeTab.replace('s', '')).map((t, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-3 font-mono text-[10px] text-slate-400">{t.id}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900">
-                        {t.student ? `${t.student} → ${t.tutor}` : `Payout to ${t.tutor}`}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 font-bold text-slate-900">₹{t.amount.toLocaleString()}</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold capitalize ${TYPE_COLORS[t.type]}`}>{t.type}</span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-400">{t.date}</td>
-                    <td className="px-4 py-3 font-bold capitalize">
-                      <span className={STATUS_COLORS[t.status]}>{t.status}</span>
-                    </td>
-                  </tr>
-                ))}
+                {TRANSACTIONS.filter(t => activeTab === 'revenue' ? true : t.type === activeTab.replace('s', '')).map((t, i) => {
+                  const payStyle = String(t.paymentStatus || '').toLowerCase() === 'paid'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                    : String(t.paymentStatus || '').toLowerCase() === 'claimed'
+                      ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                      : 'bg-amber-50 text-amber-700 border border-amber-100';
+
+                  const apprStyle = ['admin approved', 'approved'].includes(String(t.approvalStatus || '').toLowerCase())
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                    : String(t.approvalStatus || '').toLowerCase() === 'tutor assigned'
+                      ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                      : ['payment completed', 'completed'].includes(String(t.approvalStatus || '').toLowerCase())
+                        ? 'bg-violet-50 text-violet-700 border border-violet-100'
+                        : 'bg-amber-50 text-amber-700 border border-amber-100';
+
+                  return (
+                    <tr key={i} className="hover:bg-slate-50/50">
+                      <td className="px-4 py-3 font-mono text-[10px] text-slate-400">{t.id}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-800">{t.student}</td>
+                      <td className="px-4 py-3 text-slate-600">{t.tutor}</td>
+                      <td className="px-4 py-3 text-slate-500 font-medium">{t.subject || 'General'}</td>
+                      <td className="px-4 py-3 font-bold text-slate-900">₹{t.amount.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${payStyle}`}>
+                          {t.paymentStatus || 'Paid'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${apprStyle}`}>
+                          {t.approvalStatus || 'Admin Approved'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-400">{t.date}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

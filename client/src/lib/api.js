@@ -54,4 +54,19 @@ export const adminApi = {
   
   getBookings: () => api.get('admin-new/bookings').then(res => res.data),
   updateBooking: (id, data) => api.put(`admin-new/bookings/${id}`, data).then(res => res.data),
+  assignTutor: (bookingId, tutorId, scheduledAt) => api.patch(`bookings/${bookingId}/assign-tutor`, { tutorId, scheduledAt }).then(res => res.data),
+  rejectBooking: (bookingId, reason) => api.patch(`bookings/${bookingId}/reject`, { reason }).then(res => res.data),
+  confirmQrPayment: (bookingId) => api.post(`bookings/${bookingId}/payment/qr-confirm`).then(res => res.data),
+};
+
+// Student API
+export const studentApi = {
+  getMyBookings: () => api.get('bookings/student/me').then(res => res.data).catch(() => []),
+  createBooking: (data) => api.post('bookings', data).then(res => res.data),
+  claimQrPayment: (bookingId) => api.post(`bookings/${bookingId}/payment/qr-claim`).then(res => res.data),
+};
+
+// Config API
+export const configApi = {
+  getPublicSettings: () => api.get('config/settings/public').then(res => res.data).catch(() => ({})),
 };

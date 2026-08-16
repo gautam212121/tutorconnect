@@ -4,6 +4,15 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ScheduleView from './components/ScheduleView';
+import StudentBookingsSection from './components/StudentBookingsSection';
+import StudentAssignmentsSection from './components/StudentAssignmentsSection';
+import StudentMessagesSection from './components/StudentMessagesSection';
+import StudentPaymentsSection from './components/StudentPaymentsSection';
+import StudentProgressSection from './components/StudentProgressSection';
+import StudentReviewsSection from './components/StudentReviewsSection';
+import StudentNotificationsSection from './components/StudentNotificationsSection';
+import StudentSettingsSection from './components/StudentSettingsSection';
+import StudentSupportSection from './components/StudentSupportSection';
 import {
   Search, MapPin, BookOpen, GraduationCap, Star, Calendar, ArrowRight,
   CreditCard, MessageSquare, Shield, BadgeCheck, ChevronRight, Heart,
@@ -24,7 +33,7 @@ function StudentDashboardContent() {
     if (stored) setUser(JSON.parse(stored));
   }, []);
 
-  const { data: dashboard, loading } = usePoll('/api/v1/student/dashboard', 10000, null);
+  const { data: dashboard, loading } = usePoll('/api/v1/student/dashboard', 30000, null);
 
   if (loading && !dashboard) {
     return (
@@ -53,8 +62,79 @@ function StudentDashboardContent() {
     );
   }
 
+  if (section === 'bookings') {
+    return <StudentBookingsSection user={user} />;
+  }
+
+  if (section === 'assignments') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <StudentAssignmentsSection user={user} />
+      </div>
+    );
+  }
+
+  if (section === 'messages') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <StudentMessagesSection user={user} />
+      </div>
+    );
+  }
+
+  if (section === 'payments') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <StudentPaymentsSection user={user} />
+      </div>
+    );
+  }
+
+  if (section === 'progress') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <StudentProgressSection user={user} />
+      </div>
+    );
+  }
+
+  if (section === 'reviews') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <StudentReviewsSection user={user} />
+      </div>
+    );
+  }
+
+  if (section === 'notifications') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <StudentNotificationsSection user={user} />
+      </div>
+    );
+  }
+
+  if (section === 'settings') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <StudentSettingsSection user={user} onProfileUpdate={(updated) => {
+          setUser(updated);
+          localStorage.setItem('verifiedtutor-user', JSON.stringify(updated));
+        }} />
+      </div>
+    );
+  }
+
+  if (section === 'support') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <StudentSupportSection user={user} />
+      </div>
+    );
+  }
+
   // Handle unimplemented sections
-  const unimplementedSections = ['bookings', 'subjects', 'messages', 'assignments', 'payments', 'progress', 'reviews', 'notifications', 'settings', 'support'];
+  const unimplementedSections = ['subjects'];
   if (unimplementedSections.includes(section)) {
     return (
       <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto h-[calc(100vh-100px)] flex flex-col items-center justify-center">
@@ -264,16 +344,16 @@ function StudentDashboardContent() {
                         <div className="flex flex-col items-end gap-1 min-w-[80px]">
                           {i === 0 ? (
                             <>
-                              <span className="px-2 py-0.5 rounded text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100">Live Class</span>
-                              <button className="flex items-center gap-1 text-[10px] font-bold text-white bg-[#056852] px-2.5 py-1 rounded hover:bg-[#045242] transition">
-                                <Video size={10} /> Join Now
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100">Today</span>
+                              <button className="flex items-center gap-1 text-[10px] font-bold text-[#056852] px-2.5 py-1 rounded border border-[#056852] hover:bg-emerald-50 transition w-full text-center justify-center">
+                                Home Tuition
                               </button>
                             </>
                           ) : (
                             <>
                               <span className="px-2 py-0.5 rounded text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-100">Upcoming</span>
-                              <button className="text-[10px] font-bold text-[#056852] px-2.5 py-1 rounded border border-slate-200 hover:bg-slate-50 transition w-full text-center">
-                                View
+                              <button className="flex items-center gap-1 text-[10px] font-bold text-[#056852] px-2.5 py-1 rounded border border-slate-200 hover:bg-slate-50 transition w-full text-center justify-center">
+                                Offline
                               </button>
                             </>
                           )}

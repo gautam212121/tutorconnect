@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import TutorScheduleView from './components/TutorScheduleView';
+import TutorAnalyticsSection from './components/TutorAnalyticsSection';
 import {
   Users, Star, Calendar, ArrowRight, CreditCard, TrendingUp, ArrowUpRight,
   MapPin, GraduationCap, Clock, Award, ChevronRight, Wallet, Shield,
@@ -57,14 +58,14 @@ function TutorDashboardContent() {
       .catch(() => {});
   }, []);
 
-  const { data: dashboard, loading: dashLoading } = usePoll('/api/v1/tutor/dashboard', 10000, null);
+  const { data: dashboard, loading: dashLoading } = usePoll('/api/v1/tutor/dashboard', 30000, null);
   
   // Combine loading state
   useEffect(() => {
-    if (!dashLoading && dashboard) {
+    if (!dashLoading) {
       setLoading(false);
     }
-  }, [dashLoading, dashboard]);
+  }, [dashLoading]);
 
   if (loading) {
     return (
@@ -98,6 +99,14 @@ function TutorDashboardContent() {
     return (
       <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
         <TutorScheduleView user={user} />
+      </div>
+    );
+  }
+
+  if (section === 'analytics') {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <TutorAnalyticsSection user={user} />
       </div>
     );
   }

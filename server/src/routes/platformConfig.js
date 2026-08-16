@@ -1,5 +1,6 @@
 import express from 'express';
 import PlatformConfig from '../models/PlatformConfig.js';
+import Settings from '../models/Settings.js';
 import { verifyToken, requireRole } from '../middleware/auth.js';
 import { getCommissionStructure } from '../services/commissionService.js';
 
@@ -27,6 +28,22 @@ router.get('/info', async (_req, res) => {
       platformAddress: config.platformAddress,
       freeLeadsPerMonth: config.freeLeadsPerMonth,
       maintenanceMode: config.maintenanceMode,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── Public: Get safe settings ─────────────────────────────────────────────────
+router.get('/settings/public', async (_req, res) => {
+  try {
+    const settings = await Settings.findOne();
+    if (!settings) return res.json({});
+    res.json({
+      paymentMethods: settings.paymentMethods || [],
+      commissionRate: settings.commissionRate,
+      gstRate: settings.gstRate,
+      platformName: settings.platformName,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

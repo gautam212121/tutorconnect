@@ -129,6 +129,10 @@ export default function TutorScheduleView({ user }) {
                     <BookOpen size={16} className="text-slate-400" />
                     <span className="text-slate-600">{schedule.selectedSubjects?.join(', ') || schedule.subject}</span>
                   </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin size={16} className="text-slate-400" />
+                    <span className="text-slate-600">{schedule.student?.address?.area || schedule.student?.address?.full || 'Address not provided'}</span>
+                  </div>
                   
                   {schedule.adminNotes && (
                     <div className="mt-3 p-2 bg-slate-50 rounded border border-slate-100 text-xs text-slate-600">

@@ -118,14 +118,30 @@ export class Booking {
     const fields = [];
     const params = [];
 
-    if (updates.status !== undefined) { fields.push('status = ?'); params.push(updates.status); }
-    if (updates.paymentStatus !== undefined) { fields.push('paymentStatus = ?'); params.push(updates.paymentStatus); }
-    if (updates.amount !== undefined) { fields.push('amount = ?'); params.push(updates.amount); }
-    if (updates.meetLink !== undefined) { fields.push('meetLink = ?'); params.push(updates.meetLink); }
-    if (updates.tutorEarning !== undefined) { fields.push('tutorEarning = ?'); params.push(updates.tutorEarning); }
-    if (updates.adminCommission !== undefined) { fields.push('adminCommission = ?'); params.push(updates.adminCommission); }
-    if (updates.razorpayPaymentId !== undefined) { fields.push('razorpayPaymentId = ?'); params.push(updates.razorpayPaymentId); }
-    if (updates.razorpayOrderId !== undefined) { fields.push('razorpayOrderId = ?'); params.push(updates.razorpayOrderId); }
+    const directFields = [
+      'status', 'paymentStatus', 'amount', 'meetLink',
+      'tutorEarning', 'adminCommission', 'razorpayPaymentId', 'razorpayOrderId',
+      'tutor', 'adminRate', 'tutorRate'
+    ];
+    for (const field of directFields) {
+      if (updates[field] !== undefined) {
+        fields.push(`${field} = ?`);
+        params.push(updates[field]);
+      }
+    }
+
+    if (updates.studentSnapshot !== undefined) {
+      fields.push('studentSnapshot = ?');
+      params.push(updates.studentSnapshot ? JSON.stringify(updates.studentSnapshot) : null);
+    }
+    if (updates.tutorSnapshot !== undefined) {
+      fields.push('tutorSnapshot = ?');
+      params.push(updates.tutorSnapshot ? JSON.stringify(updates.tutorSnapshot) : null);
+    }
+    if (updates.scheduledAt !== undefined) {
+      fields.push('scheduledAt = ?');
+      params.push(updates.scheduledAt ? new Date(updates.scheduledAt) : null);
+    }
 
     if (fields.length === 0) return booking;
 

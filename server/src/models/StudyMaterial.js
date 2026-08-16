@@ -7,6 +7,7 @@ export function formatStudyMaterial(row) {
     title: row.title,
     fileUrl: row.fileUrl,
     courseId: row.courseId,
+    studentId: row.studentId,
     tutorId: row.tutorId,
     type: row.type || 'PDF',
     createdAt: row.createdAt,
@@ -20,6 +21,7 @@ export class StudyMaterial {
     const params = [];
     if (filter.tutorId) { sql += ' AND tutorId = ?'; params.push(filter.tutorId); }
     if (filter.courseId) { sql += ' AND courseId = ?'; params.push(filter.courseId); }
+    if (filter.studentId) { sql += ' AND studentId = ?'; params.push(filter.studentId); }
     sql += ' ORDER BY id DESC';
     const rows = await query(sql, params);
     return rows.map(formatStudyMaterial);
@@ -32,9 +34,9 @@ export class StudyMaterial {
   }
 
   static async create(data) {
-    const { title, fileUrl, courseId, tutorId, type = 'PDF' } = data;
-    const sql = `INSERT INTO study_materials (title, fileUrl, courseId, tutorId, type) VALUES (?, ?, ?, ?, ?)`;
-    const params = [title, fileUrl, courseId, tutorId, type];
+    const { title, fileUrl, courseId, studentId, tutorId, type = 'PDF' } = data;
+    const sql = `INSERT INTO study_materials (title, fileUrl, courseId, studentId, tutorId, type) VALUES (?, ?, ?, ?, ?, ?)`;
+    const params = [title, fileUrl, courseId || null, studentId || null, tutorId, type];
     const res = await execute(sql, params);
     return this.findById(res.insertId);
   }

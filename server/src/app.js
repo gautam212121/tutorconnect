@@ -24,6 +24,7 @@ import subscriptionsRouter from './routes/subscriptions.js';
 import walletRouter from './routes/wallet.js';
 import platformConfigRouter from './routes/platformConfig.js';
 import tutorRouter from './routes/tutor.js';
+import schedulesRouter from './routes/schedules.js';
 
 // Models
 import { User } from './models/User.js';
@@ -39,6 +40,11 @@ import { Lead } from './models/Lead.js';
 import { Subscription } from './models/Subscription.js';
 import { Withdrawal } from './models/Withdrawal.js';
 import { PlatformConfig } from './models/PlatformConfig.js';
+import { Assignment } from './models/Assignment.js';
+import { Schedule } from './models/Schedule.js';
+import { AssignmentSubmission } from './models/AssignmentSubmission.js';
+import { SupportTicket } from './models/SupportTicket.js';
+import { createNotification } from './services/notificationService.js';
 
 dotenv.config();
 
@@ -90,6 +96,7 @@ const createApp = () => {
   app.use('/api/v1/subscriptions', subscriptionsRouter); // has its own auth per-route
   app.use('/api/v1/wallet', walletRouter); // has its own auth per-route
   app.use('/api/v1/tutor', tutorRouter);
+  app.use('/api/v1/schedules', verifyToken, schedulesRouter);
 
   // Public routes
   app.use('/api/v1', publicRouter);
@@ -814,6 +821,15 @@ const createApp = () => {
         chartData.push(count * 10 + (6 - i) * 15);
       }
 
+      const assignedTutors = bookings
+        .filter(b => b.tutor && b.status !== 'Rejected' && b.status !== 'Cancelled')
+        .map(b => ({
+          tutorId: String(b.tutor.id),
+          tutorName: b.tutor.name,
+          subject: b.subject || 'General',
+          bookingId: b.id
+        }));
+
       res.json({
         stats: {
           upcomingSessions: upcomingSessions.length,
@@ -835,8 +851,568 @@ const createApp = () => {
           labels: chartLabels,
           data: chartData
         },
-        unreadMessages
+        unreadMessages,
+        assignedTutors
       });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get('/api/v1/student/assignments', verifyToken, requireRole('student'), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const assignments = await Assignment.find({ studentId });
+      for (const a of assignments) {
+        a.tutor = await User.findById(a.tutorId);
+      }
+      res.json(assignments);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get('/api/v1/student/study-materials', verifyToken, requireRole('student'), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const materials = await StudyMaterial.find({ studentId });
+      for (const m of materials) {
+        m.tutor = await User.findById(m.tutorId);
+      }
+      res.json(materials);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Student Assignments Submissions ───────────────────────────────────────
+  app.post('/api/v1/student/assignments/:id/submit', verifyToken, requireRole('student'), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const assignmentId = req.params.id;
+      const { content, fileUrl } = req.body;
+
+      const assignment = await Assignment.findById(assignmentId);
+      if (!assignment) return res.status(404).json({ message: 'Assignment not found' });
+
+      const existing = await AssignmentSubmission.find({ assignmentId, studentId });
+      if (existing.length > 0) {
+        return res.status(400).json({ message: 'You have already submitted this assignment' });
+      }
+
+      const submission = await AssignmentSubmission.create({
+        assignmentId,
+        studentId,
+        content,
+        fileUrl,
+        status: 'Submitted'
+      });
+
+      // Notify tutor
+      const io = getIo(req);
+      await createNotification(io, {
+        recipientId: assignment.tutorId,
+        title: 'Assignment Submitted',
+        message: `Student has submitted assignment: ${assignment.title}.`,
+        type: 'assignment',
+        link: '/dashboard/tutor/assignments'
+      });
+
+      res.status(201).json(submission);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get('/api/v1/student/assignments/:id/submission', verifyToken, requireRole('student'), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const submissions = await AssignmentSubmission.find({ assignmentId: req.params.id, studentId });
+      res.json(submissions[0] || null);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Student Payments History ──────────────────────────────────────────────
+  app.get('/api/v1/student/payments', verifyToken, requireRole('student'), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const payments = await Payment.find({ student: studentId });
+      const populated = [];
+      for (const p of payments) {
+        const tutor = await User.findById(p.tutor);
+        const booking = await Booking.findById(p.booking);
+        populated.push({
+          ...p,
+          tutorName: tutor ? tutor.name : 'Unknown Tutor',
+          subject: booking ? booking.subject : 'General',
+          bookingStatus: booking ? booking.status : 'Pending',
+          date: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : 'Unknown'
+        });
+      }
+      res.json(populated);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Student Progress ──────────────────────────────────────────────────────
+  app.get('/api/v1/student/progress', verifyToken, requireRole('student'), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const [bookings, schedules, assignments, submissions] = await Promise.all([
+        Booking.find({ student: studentId }),
+        Schedule.find({ student: studentId }),
+        Assignment.find({ studentId }),
+        AssignmentSubmission.find({ studentId })
+      ]);
+
+      const completedClasses = schedules.filter(s => s.status === 'Completed').length;
+      const totalClasses = schedules.filter(s => s.status !== 'Cancelled').length;
+      const attendance = totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 100;
+
+      const completedAssignments = submissions.length;
+      const totalAssignments = assignments.length;
+      const assignmentRate = totalAssignments > 0 ? Math.round((completedAssignments / totalAssignments) * 100) : 100;
+
+      const graded = submissions.filter(sub => sub.status === 'Graded' && sub.grade);
+      const avgScore = graded.length > 0
+        ? Math.round(graded.reduce((sum, sub) => sum + (parseFloat(sub.grade) || 0), 0) / graded.length)
+        : 0;
+
+      const subjectMap = {};
+      bookings.forEach(b => {
+        if (!b.subject) return;
+        const subjects = b.subject.split(',').map(s => s.trim());
+        subjects.forEach(sub => {
+          if (!subjectMap[sub]) subjectMap[sub] = { total: 0, completed: 0 };
+          subjectMap[sub].total++;
+          if (b.status === 'Completed' || b.status === 'Payment Completed') {
+            subjectMap[sub].completed++;
+          }
+        });
+      });
+      const subjectsProgress = Object.keys(subjectMap).map(name => {
+        const data = subjectMap[name];
+        return {
+          name,
+          progress: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
+          total: data.total,
+          completed: data.completed
+        };
+      });
+
+      res.json({
+        stats: {
+          completedClasses,
+          totalClasses,
+          attendance,
+          completedAssignments,
+          totalAssignments,
+          assignmentRate,
+          avgScore
+        },
+        subjectsProgress
+      });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Tutor Reviews & Ratings ────────────────────────────────────────────────
+  app.get('/api/v1/student/eligible-reviews', verifyToken, requireRole('student'), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const bookings = await Booking.find({ student: studentId });
+      const eligible = [];
+      for (const b of bookings) {
+        if (['Completed', 'Payment Completed'].includes(b.status)) {
+          const existing = await Review.find({ booking: b.id });
+          if (existing.length === 0) {
+            const tutor = await User.findById(b.tutor);
+            eligible.push({
+              bookingId: b.id,
+              tutorId: b.tutor,
+              tutorName: tutor ? tutor.name : 'Your Tutor',
+              subject: b.subject,
+              completedAt: b.updatedAt
+            });
+          }
+        }
+      }
+      res.json(eligible);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post('/api/v1/student/reviews', verifyToken, requireRole('student'), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const { bookingId, tutorId, rating, comment } = req.body;
+
+      if (!bookingId || !tutorId || !rating) {
+        return res.status(400).json({ message: 'bookingId, tutorId, and rating are required' });
+      }
+
+      const existing = await Review.find({ booking: bookingId, student: studentId });
+      if (existing.length > 0) {
+        return res.status(400).json({ message: 'You have already reviewed this booking' });
+      }
+
+      const review = await Review.create({
+        booking: bookingId,
+        student: studentId,
+        tutor: tutorId,
+        rating: Number(rating),
+        comment
+      });
+
+      const agg = await Review.aggregate([{ $match: { tutor: Number(tutorId) } }]);
+      if (agg.length > 0) {
+        const { avgRating, count } = agg[0];
+        await User.findByIdAndUpdate(tutorId, {
+          rating: avgRating,
+          reviews: count
+        });
+      }
+
+      res.status(201).json(review);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Notifications ──────────────────────────────────────────────────────────
+  app.get('/api/v1/notifications', verifyToken, async (req, res) => {
+    try {
+      const notifications = await Notification.find({ recipient: req.user.id });
+      res.json(notifications);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch('/api/v1/notifications/read', verifyToken, async (req, res) => {
+    try {
+      await Notification.updateMany({ recipient: req.user.id }, { read: true, readAt: new Date() });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch('/api/v1/notifications/:id/read', verifyToken, async (req, res) => {
+    try {
+      await Notification.updateMany({ recipient: req.user.id, id: req.params.id }, { read: true, readAt: new Date() });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Change Password ────────────────────────────────────────────────────────
+  app.post('/api/v1/profile/change-password', verifyToken, async (req, res) => {
+    try {
+      const { oldPassword, newPassword } = req.body;
+      if (!oldPassword || !newPassword) {
+        return res.status(400).json({ message: 'Both old and new passwords are required' });
+      }
+
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) return res.status(400).json({ message: 'Incorrect old password' });
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await User.findByIdAndUpdate(req.user.id, { password: hashedPassword });
+
+      res.json({ message: 'Password updated successfully' });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Support Tickets ────────────────────────────────────────────────────────
+  app.post('/api/v1/student/support/tickets', verifyToken, requireRole('student'), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const { subject, message } = req.body;
+      if (!subject || !message) {
+        return res.status(400).json({ message: 'Subject and message are required' });
+      }
+
+      const ticket = await SupportTicket.create({ studentId, subject, message, status: 'Open' });
+      res.status(201).json(ticket);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get('/api/v1/student/support/tickets', verifyToken, requireRole('student'), async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const tickets = await SupportTicket.find({ studentId });
+      res.json(tickets);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post('/api/v1/tutor/support/tickets', verifyToken, requireRole('tutor'), async (req, res) => {
+    try {
+      const tutorId = req.user.id;
+      const { subject, message } = req.body;
+      if (!subject || !message) {
+        return res.status(400).json({ message: 'Subject and message are required' });
+      }
+
+      const ticket = await SupportTicket.create({ studentId: tutorId, subject, message, status: 'Open' });
+      res.status(201).json(ticket);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get('/api/v1/tutor/support/tickets', verifyToken, requireRole('tutor'), async (req, res) => {
+    try {
+      const tutorId = req.user.id;
+      const tickets = await SupportTicket.find({ studentId: tutorId });
+      res.json(tickets);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get('/api/v1/admin/support/tickets', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+      const tickets = await SupportTicket.find();
+      const populated = [];
+      for (const t of tickets) {
+        const student = await User.findById(t.studentId);
+        populated.push({
+          ...t,
+          studentName: student ? student.name : 'Unknown Student',
+          studentEmail: student ? student.email : ''
+        });
+      }
+      res.json(populated);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post('/api/v1/admin/support/tickets/:id/reply', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+      const { adminReply } = req.body;
+      if (!adminReply) return res.status(400).json({ message: 'Reply content is required' });
+
+      const ticket = await SupportTicket.findById(req.params.id);
+      if (!ticket) return res.status(404).json({ message: 'Support ticket not found' });
+
+      const updated = await SupportTicket.update(req.params.id, {
+        adminReply,
+        status: 'Replied',
+        repliedAt: new Date()
+      });
+
+      // Notify student
+      const io = getIo(req);
+      await createNotification(io, {
+        recipientId: ticket.studentId,
+        title: 'Support Ticket Replied',
+        message: `Admin replied to your support ticket: "${ticket.subject}".`,
+        type: 'support',
+        link: '/dashboard/student?section=support'
+      });
+
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Tutor Grading & Submissions ────────────────────────────────────────────
+  app.get('/api/v1/tutor/submissions', verifyToken, requireRole('tutor'), async (req, res) => {
+    try {
+      const tutorId = req.user.id;
+      const assignments = await Assignment.find({ tutorId });
+      const submissions = [];
+      for (const a of assignments) {
+        const subs = await AssignmentSubmission.find({ assignmentId: a.id });
+        for (const s of subs) {
+          const student = await User.findById(s.studentId);
+          submissions.push({
+            ...s,
+            assignmentTitle: a.title,
+            studentName: student ? student.name : 'Student',
+            studentEmail: student ? student.email : ''
+          });
+        }
+      }
+      res.json(submissions);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post('/api/v1/tutor/submissions/:id/grade', verifyToken, requireRole('tutor'), async (req, res) => {
+    try {
+      const { grade, feedback } = req.body;
+      const sub = await AssignmentSubmission.findById(req.params.id);
+      if (!sub) return res.status(404).json({ message: 'Submission not found' });
+
+      const assignment = await Assignment.findById(sub.assignmentId);
+      if (!assignment || assignment.tutorId !== req.user.id) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const updated = await AssignmentSubmission.update(req.params.id, {
+        grade,
+        feedback,
+        status: 'Graded'
+      });
+
+      // Notify student
+      const io = getIo(req);
+      await createNotification(io, {
+        recipientId: sub.studentId,
+        title: 'Assignment Graded',
+        message: `Your tutor graded assignment: "${assignment.title}". Grade: ${grade}.`,
+        type: 'assignment',
+        link: '/dashboard/student?section=assignments'
+      });
+
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Tutor Analytics ────────────────────────────────────────────────────────
+  app.get('/api/v1/tutor/analytics', verifyToken, requireRole('tutor'), async (req, res) => {
+    try {
+      const tutorId = req.user.id;
+      
+      const [bookings, schedules, assignments, submissions, reviews] = await Promise.all([
+        Booking.find({ tutor: tutorId }),
+        Schedule.find({ tutor: tutorId }),
+        Assignment.find({ tutorId }),
+        AssignmentSubmission.find({}),
+        Review.find({ tutor: tutorId })
+      ]);
+
+      const completedSessions = schedules.filter(s => s.status === 'Completed').length;
+      const upcomingSessions = schedules.filter(s => s.status === 'Approved' && new Date(s.scheduledAt) > new Date()).length;
+
+      const studentIds = [...new Set(bookings.map(b => String(b.student)))];
+      const totalStudents = studentIds.length;
+      const activeStudents = [...new Set(schedules.filter(s => s.status === 'Approved').map(s => String(s.student)))].length;
+
+      const avgRating = reviews.length > 0
+        ? Number((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1))
+        : 0;
+
+      const payments = await Payment.find({ tutor: tutorId });
+      const completedPayments = payments.filter(p => p.status === 'Completed' || p.status === 'Paid');
+      const totalEarnings = completedPayments.reduce((sum, p) => sum + (p.tutorShare || 0), 0);
+      const pendingEarnings = payments.filter(p => p.status !== 'Completed' && p.status !== 'Paid').reduce((sum, p) => sum + (p.tutorShare || 0), 0);
+
+      const subjectMap = {};
+      bookings.forEach(b => {
+        if (!b.subject) return;
+        const subs = b.subject.split(',').map(s => s.trim());
+        subs.forEach(s => {
+          if (!subjectMap[s]) subjectMap[s] = 0;
+          subjectMap[s]++;
+        });
+      });
+      const subjectStats = Object.keys(subjectMap).map(name => ({
+        name,
+        count: subjectMap[name]
+      }));
+
+      const assignmentCount = assignments.length;
+      const tutorAssignmentIds = new Set(assignments.map(a => a.id));
+      const tutorSubmissions = submissions.filter(sub => tutorAssignmentIds.has(sub.assignmentId));
+      const submissionCount = tutorSubmissions.length;
+      const gradedCount = tutorSubmissions.filter(sub => sub.status === 'Graded').length;
+
+      res.json({
+        totalStudents,
+        activeStudents,
+        completedSessions,
+        upcomingSessions,
+        avgRating,
+        totalEarnings,
+        pendingEarnings,
+        subjectStats,
+        assignmentStats: {
+          total: assignmentCount,
+          submitted: submissionCount,
+          graded: gradedCount
+        }
+      });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Admin Messages Monitoring ──────────────────────────────────────────────
+  app.get('/api/v1/admin/conversations', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+      const messages = await Message.find({});
+      const groups = {};
+      for (const m of messages) {
+        const fromUser = await User.findById(m.from);
+        const toUser = await User.findById(m.to);
+        
+        if (!fromUser || !toUser) continue;
+        
+        const student = fromUser.role === 'student' ? fromUser : toUser.role === 'student' ? toUser : null;
+        const tutor = fromUser.role === 'tutor' ? fromUser : toUser.role === 'tutor' ? toUser : null;
+        
+        if (!student || !tutor) continue;
+        
+        const key = `${student.id}-${tutor.id}`;
+        if (!groups[key]) {
+          groups[key] = {
+            student: { id: student.id, name: student.name, email: student.email },
+            tutor: { id: tutor.id, name: tutor.name, email: tutor.email },
+            bookingId: m.booking || null,
+            lastMessage: m.content,
+            messageCount: 0,
+            updatedAt: m.createdAt
+          };
+        }
+        groups[key].messageCount++;
+        if (new Date(m.createdAt) > new Date(groups[key].updatedAt)) {
+          groups[key].lastMessage = m.content;
+          groups[key].updatedAt = m.createdAt;
+        }
+      }
+      res.json(Object.values(groups));
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get('/api/v1/admin/conversations/:studentId/:tutorId', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+      const { studentId, tutorId } = req.params;
+      const messages = await Message.find({
+        $or: [
+          { from: studentId, to: tutorId },
+          { from: tutorId, to: studentId }
+        ]
+      });
+      for (const m of messages) {
+        m.from = await User.findById(m.from);
+        m.to = await User.findById(m.to);
+      }
+      res.json(messages);
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -856,7 +1432,7 @@ const createApp = () => {
       }
       const { checkFreeLeadsAvailable, calculateCommissionRate } = await import('./services/commissionService.js');
 
-      const [bookings, leads, earningsData, freeLeads, commissionInfo, unreadMessages] = await Promise.all([
+      const [bookings, leads, tutorPayments, freeLeads, commissionInfo, unreadMessages] = await Promise.all([
         (async () => {
           const list = await Booking.find({ tutor: userId });
           for (const booking of list) {
@@ -870,14 +1446,19 @@ const createApp = () => {
           list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
           return list.slice(0, 10);
         })(),
-        Payment.aggregate([
-          { $match: { tutor: userId, status: 'Completed', createdAt: { $gte: thisMonth } } },
-          { $group: { _id: null, total: { $sum: '$tutorShare' }, commission: { $sum: '$adminShare' }, gross: { $sum: '$totalAmount' } } },
-        ]),
+        Payment.find({ tutor: userId }),
         checkFreeLeadsAvailable(userId),
         calculateCommissionRate(userId),
         Message.countDocuments({ to: userId, read: false }),
       ]);
+
+      const completedPayments = tutorPayments.filter(p => p.status === 'Completed' || p.status === 'Paid');
+      const totalEarningsSum = completedPayments.reduce((sum, p) => sum + (p.tutorShare || 0), 0);
+      const grossEarningsSum = completedPayments.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+      const totalCommissionSum = completedPayments.reduce((sum, p) => sum + (p.adminShare || 0), 0);
+      
+      const thisMonthPayments = completedPayments.filter(p => p.createdAt && new Date(p.createdAt) >= thisMonth);
+      const monthlyEarningsSum = thisMonthPayments.reduce((sum, p) => sum + (p.tutorShare || 0), 0);
 
       const upcomingSessions = bookings.filter(b => b.status === 'Confirmed' && b.scheduledAt && new Date(b.scheduledAt) > now);
       const activeLeads = leads.filter(l => ['new', 'contacted', 'responded'].includes(l.status));
@@ -905,22 +1486,47 @@ const createApp = () => {
 
       // Monthly earnings for chart (last 6 months)
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-      const monthlyEarnings = await Payment.aggregate([
-        { $match: { tutor: userId, status: 'Completed', createdAt: { $gte: sixMonthsAgo } } },
-        {
-          $group: {
-            _id: { $dateToString: { format: '%d %b', date: '$createdAt' } },
-            earnings: { $sum: '$tutorShare' },
-          },
-        },
-        { $sort: { _id: 1 } },
-      ]);
+      const months = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push({
+          month: d.toLocaleDateString('en-US', { month: 'short' }),
+          year: d.getFullYear(),
+          earnings: 0
+        });
+      }
+      completedPayments.forEach(p => {
+        if (!p.createdAt) return;
+        const pDate = new Date(p.createdAt);
+        if (pDate >= sixMonthsAgo) {
+          const mName = pDate.toLocaleDateString('en-US', { month: 'short' });
+          const mItem = months.find(m => m.month === mName && m.year === pDate.getFullYear());
+          if (mItem) mItem.earnings += p.tutorShare;
+        }
+      });
+      const monthlyEarnings = months.map(m => ({ _id: m.month, earnings: m.earnings }));
 
-      // Recent payouts
-      const { Withdrawal } = await import('./models/Withdrawal.js');
-      let recentPayouts = await Withdrawal.find({ tutor: userId });
-      recentPayouts.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-      recentPayouts = recentPayouts.slice(0, 3);
+      // Recent payouts & transaction history
+      const recentPayouts = [];
+      for (const p of tutorPayments) {
+        const student = await User.findById(p.student);
+        const booking = await Booking.findById(p.booking);
+        
+        recentPayouts.push({
+          id: p.id,
+          studentName: student ? student.name : 'Student',
+          subject: booking ? booking.subject : 'General',
+          grossAmount: Number(p.totalAmount || 0),
+          tutorShare: Number(p.tutorShare || 0),
+          adminShare: Number(p.adminShare || 0),
+          paymentStatus: p.status || 'Pending',
+          payoutStatus: p.status === 'Paid' || p.status === 'Completed' ? 'Disbursed' : 'Pending',
+          date: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString(),
+          status: p.status === 'Paid' || p.status === 'Completed' ? 'Completed' : 'Pending',
+          amount: p.tutorShare
+        });
+      }
+      recentPayouts.sort((a, b) => new Date(b.date) - new Date(a.date));
 
       res.json({
         stats: {
@@ -928,10 +1534,11 @@ const createApp = () => {
           activeLeads: activeLeads.length,
           respondedLeads: leads.filter(l => l.status === 'responded').length,
           upcomingSessions: upcomingSessions.filter(b => new Date(b.scheduledAt) < new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)).length,
-          totalEarnings: earningsData[0]?.total || 0,
-          totalCommission: earningsData[0]?.commission || 0,
-          grossEarnings: earningsData[0]?.gross || 0,
-          walletBalance: tutor.wallet?.availableBalance || 0,
+          totalEarnings: totalEarningsSum,
+          totalCommission: totalCommissionSum,
+          grossEarnings: grossEarningsSum,
+          earnings: totalEarningsSum,
+          walletBalance: tutor.wallet?.availableBalance || totalEarningsSum,
           unreadMessages,
         },
         commission: commissionInfo,
@@ -946,7 +1553,7 @@ const createApp = () => {
         leads: leads.slice(0, 10),
         monthlyEarnings,
         recentPayouts,
-        completedSessions: tutor.completedSessions || 0,
+        completedSessions: completedSessions,
         averageRating: tutor.rating || 0,
       });
     } catch (err) {

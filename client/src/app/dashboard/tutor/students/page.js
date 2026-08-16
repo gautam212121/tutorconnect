@@ -1,14 +1,13 @@
 "use client";
 
 import { usePoll } from '../../../lib/api';
-import { Users, UserCheck, UserPlus, UserX } from 'lucide-react';
+import { Users, UserCheck, UserPlus, UserX, MapPin, BookOpen, Phone, Calendar } from 'lucide-react';
 
 export default function TutorStudentsPage() {
   const { data: students = [], loading } = usePoll('/api/v1/tutor/students', 15000, []);
 
   const total = students.length;
   const active = students.filter(s => s.status === 'Active').length;
-  // A student is considered new if their last booking date was within the last 30 days
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const newStudents = students.filter(s => s.lastBookingDate && new Date(s.lastBookingDate) > thirtyDaysAgo).length;
@@ -61,14 +60,21 @@ export default function TutorStudentsPage() {
                   <th className="py-3 font-semibold">Student</th>
                   <th className="py-3 font-semibold">Contact Info</th>
                   <th className="py-3 font-semibold">Class / Grade</th>
+                  <th className="py-3 font-semibold">Subject</th>
+                  <th className="py-3 font-semibold">Address</th>
                   <th className="py-3 font-semibold">Total Classes</th>
-                  <th className="py-3 font-semibold">Last Booking</th>
                   <th className="py-3 font-semibold text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {students.length === 0 ? (
-                   <tr><td colSpan="6" className="py-8 text-center text-xs text-slate-400">No students assigned yet.</td></tr>
+                   <tr>
+                     <td colSpan="7" className="py-12 text-center">
+                       <Users size={36} className="mx-auto text-slate-300 mb-3" />
+                       <p className="text-sm font-bold text-slate-600 mb-1">No students assigned yet</p>
+                       <p className="text-xs text-slate-400">Students will appear here once admin assigns you to their bookings.</p>
+                     </td>
+                   </tr>
                 ) : students.map((student) => (
                   <tr key={student.id} className="hover:bg-slate-50/50 transition">
                     <td className="py-4">
@@ -81,11 +87,16 @@ export default function TutorStudentsPage() {
                     </td>
                     <td className="py-4">
                       <p className="text-xs text-slate-800">{student.email}</p>
-                      <p className="text-[10px] text-slate-400">{student.mobile || 'N/A'}</p>
+                      <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5"><Phone size={10} />{student.mobile || 'N/A'}</p>
                     </td>
                     <td className="py-4 text-xs font-semibold text-slate-700">{student.grade || 'N/A'}</td>
+                    <td className="py-4 text-xs text-slate-600">
+                      <span className="flex items-center gap-1"><BookOpen size={12} className="text-slate-400" />{student.subjects || 'General'}</span>
+                    </td>
+                    <td className="py-4 text-xs text-slate-600 max-w-[150px]">
+                      <span className="flex items-center gap-1 truncate"><MapPin size={12} className="text-slate-400 shrink-0" />{student.address || 'N/A'}</span>
+                    </td>
                     <td className="py-4 text-xs font-semibold text-slate-700">{student.totalBookings} classes</td>
-                    <td className="py-4 text-xs text-slate-500">{student.lastBookingDate ? new Date(student.lastBookingDate).toLocaleDateString() : 'N/A'}</td>
                     <td className="py-4 text-right">
                       <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-bold ${
                          student.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
