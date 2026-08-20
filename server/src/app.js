@@ -620,41 +620,19 @@ const createApp = () => {
 
       const cleanEmail = email.trim().toLowerCase();
 
-      // Guaranteed demo accounts permanent access
-      const demoAccounts = {
-        'admin@tutorconnect.com': { role: 'admin', pass: 'admin123', name: 'Admin' },
-        'tutor@tutorconnect.com': { role: 'tutor', pass: 'tutor123', name: 'Rahul Sharma (Tutor)' },
-        'student@tutorconnect.com': { role: 'student', pass: 'student123', name: 'Ananya Singh (Student)' },
-      };
-
-      const demo = demoAccounts[cleanEmail];
       let user = await User.findOne({ email: cleanEmail });
 
-      if (demo && password === demo.pass) {
-        if (!user) {
-          const hashedPassword = await bcrypt.hash(demo.pass, 10);
-          user = await User.create({
-            name: demo.name,
-            email: cleanEmail,
-            password: hashedPassword,
-            role: demo.role,
-            status: 'active',
-            verified: true,
-          });
-        }
-      } else {
-        if (!user) {
-          return res.status(401).json({ message: 'Invalid email or password' });
-        }
+      if (!user) {
+        return res.status(401).json({ message: 'Invalid email or password' });
+      }
 
-        if (user.status === 'blocked') {
-          return res.status(403).json({ message: 'Your account has been blocked. Contact support.' });
-        }
+      if (user.status === 'blocked') {
+        return res.status(403).json({ message: 'Your account has been blocked. Contact support.' });
+      }
 
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-          return res.status(401).json({ message: 'Invalid email or password' });
-        }
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: 'Invalid email or password' });
       }
 
       // Update last login
@@ -663,7 +641,7 @@ const createApp = () => {
         isOnline: true,
       });
 
-      if (user.role === 'student' || user.role === 'tutor') {
+      if (user.role === 'student' || user.role === 'tutor' || user.role === 'admin') {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 

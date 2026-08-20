@@ -233,6 +233,7 @@ export class User {
     // Map nested structures to flat columns if updated
     if (updates.name !== undefined) { fields.push('name = ?'); params.push(updates.name); }
     if (updates.email !== undefined) { fields.push('email = ?'); params.push(updates.email); }
+    if (updates.password !== undefined) { fields.push('password = ?'); params.push(updates.password); }
     if (updates.status !== undefined) { fields.push('status = ?'); params.push(updates.status); }
     if (updates.role !== undefined) { fields.push('role = ?'); params.push(updates.role); }
     if (updates.avatar !== undefined) { fields.push('avatar = ?'); params.push(updates.avatar); }
